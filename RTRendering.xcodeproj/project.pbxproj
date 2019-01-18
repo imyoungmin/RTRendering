@@ -7,7 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1D856C6821F1407D00E16363 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C6721F1407D00E16363 /* main.cpp */; };
+		1D856C8221F1411000E16363 /* Transformations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7021F1410F00E16363 /* Transformations.cpp */; };
+		1D856C8321F1411000E16363 /* application.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7421F1410F00E16363 /* application.cpp */; };
+		1D856C8421F1411000E16363 /* Object3D.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7621F1410F00E16363 /* Object3D.cpp */; };
+		1D856C8521F1411000E16363 /* Shaders.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7821F1410F00E16363 /* Shaders.cpp */; };
+		1D856C8621F1411000E16363 /* Atlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7C21F1411000E16363 /* Atlas.cpp */; };
+		1D856C8721F1411000E16363 /* OpenGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C8021F1411000E16363 /* OpenGL.cpp */; };
+		1D856C8821F1411000E16363 /* OpenGLGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C8121F1411000E16363 /* OpenGLGeometry.cpp */; };
+		1D856C8B21F141C800E16363 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D856C8A21F141C800E16363 /* OpenGL.framework */; };
+		1D856C8D21F1427B00E16363 /* libarmadillo.9.20.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D856C8C21F1427B00E16363 /* libarmadillo.9.20.6.dylib */; };
+		1D856C8F21F1429100E16363 /* libfreetype.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D856C8E21F1429100E16363 /* libfreetype.6.dylib */; };
+		1D856C9121F142AB00E16363 /* libglfw.3.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D856C9021F142AB00E16363 /* libglfw.3.2.dylib */; };
+		1D856C9A21F146BD00E16363 /* BallAux.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C9421F146BD00E16363 /* BallAux.cpp */; };
+		1D856C9B21F146BD00E16363 /* BallMath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C9821F146BD00E16363 /* BallMath.cpp */; };
+		1D856C9C21F146BD00E16363 /* Ball.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C9921F146BD00E16363 /* Ball.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,7 +37,34 @@
 
 /* Begin PBXFileReference section */
 		1D856C6421F1407D00E16363 /* RTRendering */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = RTRendering; sourceTree = BUILT_PRODUCTS_DIR; };
-		1D856C6721F1407D00E16363 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		1D856C6E21F1410F00E16363 /* OpenGLGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OpenGLGeometry.h; sourceTree = "<group>"; };
+		1D856C6F21F1410F00E16363 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		1D856C7021F1410F00E16363 /* Transformations.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Transformations.cpp; sourceTree = "<group>"; };
+		1D856C7221F1410F00E16363 /* Object3D.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Object3D.h; sourceTree = "<group>"; };
+		1D856C7421F1410F00E16363 /* application.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = application.cpp; sourceTree = "<group>"; };
+		1D856C7521F1410F00E16363 /* Transformations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Transformations.h; sourceTree = "<group>"; };
+		1D856C7621F1410F00E16363 /* Object3D.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Object3D.cpp; sourceTree = "<group>"; };
+		1D856C7721F1410F00E16363 /* Atlas.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Atlas.h; sourceTree = "<group>"; };
+		1D856C7821F1410F00E16363 /* Shaders.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Shaders.cpp; sourceTree = "<group>"; };
+		1D856C7921F1411000E16363 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources; sourceTree = "<group>"; };
+		1D856C7A21F1411000E16363 /* Shaders.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Shaders.h; sourceTree = "<group>"; };
+		1D856C7B21F1411000E16363 /* CMakeLists.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
+		1D856C7C21F1411000E16363 /* Atlas.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Atlas.cpp; sourceTree = "<group>"; };
+		1D856C7E21F1411000E16363 /* OpenGL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OpenGL.h; sourceTree = "<group>"; };
+		1D856C7F21F1411000E16363 /* Configuration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Configuration.h; sourceTree = "<group>"; };
+		1D856C8021F1411000E16363 /* OpenGL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = OpenGL.cpp; sourceTree = "<group>"; };
+		1D856C8121F1411000E16363 /* OpenGLGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = OpenGLGeometry.cpp; sourceTree = "<group>"; };
+		1D856C8A21F141C800E16363 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		1D856C8C21F1427B00E16363 /* libarmadillo.9.20.6.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libarmadillo.9.20.6.dylib; path = ../../../../usr/local/lib/libarmadillo.9.20.6.dylib; sourceTree = "<group>"; };
+		1D856C8E21F1429100E16363 /* libfreetype.6.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libfreetype.6.dylib; path = ../../../../usr/local/lib/libfreetype.6.dylib; sourceTree = "<group>"; };
+		1D856C9021F142AB00E16363 /* libglfw.3.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libglfw.3.2.dylib; path = ../../../../usr/local/lib/libglfw.3.2.dylib; sourceTree = "<group>"; };
+		1D856C9321F146BD00E16363 /* BallMath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BallMath.h; sourceTree = "<group>"; };
+		1D856C9421F146BD00E16363 /* BallAux.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BallAux.cpp; sourceTree = "<group>"; };
+		1D856C9521F146BD00E16363 /* Ball.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Ball.h; sourceTree = "<group>"; };
+		1D856C9621F146BD00E16363 /* BallAux.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BallAux.h; sourceTree = "<group>"; };
+		1D856C9721F146BD00E16363 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		1D856C9821F146BD00E16363 /* BallMath.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BallMath.cpp; sourceTree = "<group>"; };
+		1D856C9921F146BD00E16363 /* Ball.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Ball.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +72,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1D856C9121F142AB00E16363 /* libglfw.3.2.dylib in Frameworks */,
+				1D856C8F21F1429100E16363 /* libfreetype.6.dylib in Frameworks */,
+				1D856C8D21F1427B00E16363 /* libarmadillo.9.20.6.dylib in Frameworks */,
+				1D856C8B21F141C800E16363 /* OpenGL.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -43,6 +87,7 @@
 			children = (
 				1D856C6621F1407D00E16363 /* RTRendering */,
 				1D856C6521F1407D00E16363 /* Products */,
+				1D856C8921F141C700E16363 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -57,9 +102,51 @@
 		1D856C6621F1407D00E16363 /* RTRendering */ = {
 			isa = PBXGroup;
 			children = (
-				1D856C6721F1407D00E16363 /* main.cpp */,
+				1D856C9221F146BD00E16363 /* ArcBall */,
+				1D856C7421F1410F00E16363 /* application.cpp */,
+				1D856C7C21F1411000E16363 /* Atlas.cpp */,
+				1D856C7721F1410F00E16363 /* Atlas.h */,
+				1D856C7B21F1411000E16363 /* CMakeLists.txt */,
+				1D856C7F21F1411000E16363 /* Configuration.h */,
+				1D856C7621F1410F00E16363 /* Object3D.cpp */,
+				1D856C7221F1410F00E16363 /* Object3D.h */,
+				1D856C8021F1411000E16363 /* OpenGL.cpp */,
+				1D856C7E21F1411000E16363 /* OpenGL.h */,
+				1D856C8121F1411000E16363 /* OpenGLGeometry.cpp */,
+				1D856C6E21F1410F00E16363 /* OpenGLGeometry.h */,
+				1D856C6F21F1410F00E16363 /* README.md */,
+				1D856C7821F1410F00E16363 /* Shaders.cpp */,
+				1D856C7A21F1411000E16363 /* Shaders.h */,
+				1D856C7021F1410F00E16363 /* Transformations.cpp */,
+				1D856C7521F1410F00E16363 /* Transformations.h */,
+				1D856C7921F1411000E16363 /* Resources */,
 			);
 			path = RTRendering;
+			sourceTree = "<group>";
+		};
+		1D856C8921F141C700E16363 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1D856C9021F142AB00E16363 /* libglfw.3.2.dylib */,
+				1D856C8E21F1429100E16363 /* libfreetype.6.dylib */,
+				1D856C8C21F1427B00E16363 /* libarmadillo.9.20.6.dylib */,
+				1D856C8A21F141C800E16363 /* OpenGL.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		1D856C9221F146BD00E16363 /* ArcBall */ = {
+			isa = PBXGroup;
+			children = (
+				1D856C9321F146BD00E16363 /* BallMath.h */,
+				1D856C9421F146BD00E16363 /* BallAux.cpp */,
+				1D856C9521F146BD00E16363 /* Ball.h */,
+				1D856C9621F146BD00E16363 /* BallAux.h */,
+				1D856C9721F146BD00E16363 /* README.md */,
+				1D856C9821F146BD00E16363 /* BallMath.cpp */,
+				1D856C9921F146BD00E16363 /* Ball.cpp */,
+			);
+			path = ArcBall;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -118,7 +205,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1D856C6821F1407D00E16363 /* main.cpp in Sources */,
+				1D856C9B21F146BD00E16363 /* BallMath.cpp in Sources */,
+				1D856C8221F1411000E16363 /* Transformations.cpp in Sources */,
+				1D856C8321F1411000E16363 /* application.cpp in Sources */,
+				1D856C8521F1411000E16363 /* Shaders.cpp in Sources */,
+				1D856C9C21F146BD00E16363 /* Ball.cpp in Sources */,
+				1D856C8821F1411000E16363 /* OpenGLGeometry.cpp in Sources */,
+				1D856C8421F1411000E16363 /* Object3D.cpp in Sources */,
+				1D856C9A21F146BD00E16363 /* BallAux.cpp in Sources */,
+				1D856C8721F1411000E16363 /* OpenGL.cpp in Sources */,
+				1D856C8621F1411000E16363 /* Atlas.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -240,6 +336,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = (
+					"/usr/local/include/freetype2/**",
+					"/usr/local/include/**",
+				);
+				LIBRARY_SEARCH_PATHS = "/usr/local/lib/**";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -248,6 +349,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = (
+					"/usr/local/include/freetype2/**",
+					"/usr/local/include/**",
+				);
+				LIBRARY_SEARCH_PATHS = "/usr/local/lib/**";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
