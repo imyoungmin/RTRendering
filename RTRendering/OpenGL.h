@@ -39,7 +39,7 @@ private:
 	
 	// Lighting variables.
 	static Lighting material;  					// Material properties (to be changed).
-	static const Lighting light;				// Light source properties (constant).
+	static const vec4 lightColor;				// Light color (constant).
 	static const vec4 lightPosition;
 	
 	//////////////////////////////////////////// OpenGL rendering variables ////////////////////////////////////////////

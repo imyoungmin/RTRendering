@@ -247,7 +247,7 @@ void resizeCallback( GLFWwindow* window, int w, int h )
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 0, 0, 10 };
+	gEye = { 3, 4, 10 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -347,37 +347,33 @@ int main( int argc, const char * argv[] )
 		glEnable( GL_CULL_FACE );
 
 		OpenGL::setColor( 1.0, 1.0, 1.0 );					// A 3D object.
-		OpenGL::render3DObject( Proj, Camera, Model * Tx::translate( 0.25, -0.5, 0 ) * Tx::scale( 0.75 ), "bunny" );
+		OpenGL::render3DObject( Proj, Camera, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), "bunny" );
 
 		OpenGL::setColor( 0.0, 1.0, 0.0 );					// A green sphere.
-		OpenGL::drawSphere( Proj, Camera, Model * Tx::translate( 2, 0, 0 ) * Tx::scale( 0.5 ) );
+		OpenGL::drawSphere( Proj, Camera, Model * Tx::translate( 3, 0.5, 0 ) * Tx::scale( 0.5 ) );
 
 		OpenGL::setColor( 0.0, 0.0, 1.0 );					// A blue cylinder.
-		OpenGL::drawCylinder( Proj, Camera, Model * Tx::translate( -2, 0, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ) );
+		OpenGL::drawCylinder( Proj, Camera, Model * Tx::translate( -3, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ) );
+		
+		OpenGL::setColor( 0.9, 0.9, 1.0 );					// Ground.
+		OpenGL::drawCube( Proj, Camera, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ) );
 
 		double theta = 2.0 * M_PI/6.0;
 		double r = 3;
 		vector<vec3> points;								// A yellow hexagon.
 		for( int i = 0; i <= 6; i++ )
-			points.emplace_back( vec3( { r * cos( i * theta + currentTime ) * 1.1, r * sin( i * theta + currentTime ) * 1.1, 0 } ) );
+			points.emplace_back( vec3( { r * cos( i * theta + currentTime * 0.2 ) * 0.75, r * sin( i * theta + currentTime * 0.2 ) * 0.75, 0 } ) );
 		OpenGL::setColor( 1.0, 1.0, 0.0 );
-		OpenGL::drawPath( Proj, Camera, Model, points );
-
-		vector<vec3> points2;								// A magenta hexagon.
-		double phase = theta / 2.0;
-		for( int i = 0; i <= 6; i++ )
-			points2.emplace_back( vec3( { r * cos( i * theta + phase ), r * sin( i * theta + phase ), 0 } ) );
-		OpenGL::setColor( 1.0, 0.0, 1.0 );
-		OpenGL::drawPath( Proj, Camera, Model, points2 );
+		OpenGL::drawPath( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), points );
 
 		OpenGL::setColor( 0.0, 1.0, 1.0, 0.5 );				// A semi-transparent cyan set of points.
 		vector<vec3>::const_iterator first = points.begin();
 		vector<vec3>::const_iterator last = points.end() - 1;
-		OpenGL::drawPoints( Proj, Camera, Model, vector<vec3>( first, last ), 20 );
+		OpenGL::drawPoints( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), vector<vec3>( first, last ), 20 );
 
 		/////////////////////////////////////////////// Rendering text /////////////////////////////////////////////////
 
-		glUseProgram( OpenGL::getGlyphsProgram() );		// Switch to text rendering.
+		glUseProgram( OpenGL::getGlyphsProgram() );			// Switch to text rendering.
 		glBindVertexArray( OpenGL::getGluphsVao() );
 
 		glEnable( GL_BLEND );
@@ -400,7 +396,7 @@ int main( int argc, const char * argv[] )
 		currentTime += timeStep;
 	}
 	
-	OpenGL::finish();								// Release OpenGL resources.
+	OpenGL::finish();										// Release OpenGL resources.
 	
 	glfwDestroyWindow( window );
 	glfwTerminate();

@@ -10,14 +10,8 @@ OpenGL::Lighting OpenGL::material = 					// Material properties (which change wh
 	64.0												// Shininess.
 };
 
-const OpenGL::Lighting OpenGL::light =					// Light source properties (constant).
-{
-	{ 0.1, 0.1, 0.11, 1.0 },							// Ambient.
-	{ 0.8, 0.8, 0.8, 1.0 },								// Diffuse.
-	{ 0.9, 0.9, 0.9, 1.0 },								// Specular.
-	0.0													// Shininess.
-};
-const vec4 OpenGL::lightPosition = { -2, 5, 10, 1 };
+const vec4 OpenGL::lightColor =	{ 0.9, 0.9, 0.9, 1.0 };	// Light source properties (constant).
+const vec4 OpenGL::lightPosition = { -2, 7, 10, 1 };
 
 ///////////////////////////////////////////// OpenGL rendering variables ///////////////////////////////////////////////
 
@@ -146,9 +140,9 @@ void OpenGL::setColor( float r, float g, float b, float a )
 	b = fmax( 0.0f, fmin( b, 1.0f ) );
 	a = fmax( 0.0f, fmin( a, 1.0f ) );
 
-	material.ambient = { r, g, b, a };
 	material.diffuse = { r, g, b, a };
-	material.specular[3] = a;
+	material.ambient = material.diffuse * 0.1;
+	material.specular[3] = material.ambient[3] = a;
 }
 
 /**
@@ -352,22 +346,24 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
  */
 void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong )
 {
-	mat44 ModelView = Camera * Model;		// Model-view transformation matrix.
-
 	// Send the model-view and projection matrices.
-	float mv_matrix[ELEMENTS_PER_MATRIX];
+	float model_matrix[ELEMENTS_PER_MATRIX];
+	float view_matrix[ELEMENTS_PER_MATRIX];
 	float proj_matrix[ELEMENTS_PER_MATRIX];
-	int mv_location = glGetUniformLocation( renderingProgram, "ModelView" );
+	int model_location = glGetUniformLocation( renderingProgram, "Model" );
+	int view_location = glGetUniformLocation( renderingProgram, "View");
 	int proj_location = glGetUniformLocation( renderingProgram, "Projection" );
-	Tx::toOpenGLMatrix( mv_matrix, ModelView );
+	Tx::toOpenGLMatrix( model_matrix, Model );
+	Tx::toOpenGLMatrix( view_matrix, Camera );
 	Tx::toOpenGLMatrix( proj_matrix, Projection );
-	glUniformMatrix4fv( mv_location, 1, GL_FALSE, mv_matrix );
+	glUniformMatrix4fv( model_location, 1, GL_FALSE, model_matrix );
+	glUniformMatrix4fv( view_location, 1, GL_FALSE, view_matrix );
 	glUniformMatrix4fv( proj_location, 1, GL_FALSE, proj_matrix );
 
 	if( usingBlinnPhong )
 	{
 		float itmv_matrix[9];
-		mat33 InvTransMV = Tx::getInvTransModelView( ModelView, usingUniformScaling );	// The inverse transpose of the upper left 3x3 matrix in the Model View matrix.
+		mat33 InvTransMV = Tx::getInvTransModelView( Camera * Model, usingUniformScaling );		// The inverse transpose of the upper left 3x3 matrix in the Model View matrix.
 		Tx::toOpenGLMatrix( itmv_matrix, InvTransMV );
 		int itmv_location = glGetUniformLocation( renderingProgram, "InvTransModelView" );
 		glUniformMatrix3fv( itmv_location, 1, GL_FALSE, itmv_matrix );
@@ -395,9 +391,9 @@ void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camer
 	float diffuseProd_vector[HOMOGENEOUS_VECTOR_SIZE];
 	float specularProd_vector[HOMOGENEOUS_VECTOR_SIZE];
 
-	Tx::toOpenGLMatrix( ambientProd_vector, material.ambient % light.ambient );
-	Tx::toOpenGLMatrix( diffuseProd_vector, material.diffuse % light.diffuse );
-	Tx::toOpenGLMatrix( specularProd_vector, material.specular % light.specular );
+	Tx::toOpenGLMatrix( ambientProd_vector, material.ambient % lightColor );
+	Tx::toOpenGLMatrix( diffuseProd_vector, material.diffuse % lightColor );
+	Tx::toOpenGLMatrix( specularProd_vector, material.specular % lightColor );
 
 	int ambientProd_location = glGetUniformLocation( renderingProgram, "ambientProd" );
 	int diffuseProd_location = glGetUniformLocation( renderingProgram, "diffuseProd" );
