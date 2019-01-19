@@ -1,62 +1,9 @@
 #include "OpenGL.h"
 
-//////////////////////////////////////////// Lighting and material variables ///////////////////////////////////////////
-
-OpenGL::Lighting OpenGL::material = 					// Material properties (which change when we set color).
-{
-	{ 0.8, 0.8, 0.8, 1.0 },								// Ambient: k_a.
-	{ 0.8, 0.8, 0.8, 1.0 },								// Diffuse: k_d.
-	{ 0.8, 0.8, 0.8, 1.0 },								// Specular: k_s.
-	64.0												// Shininess.
-};
-
-const vec4 OpenGL::lightColor =	{ 0.9, 0.9, 0.9, 1.0 };	// Light source properties (constant).
-const vec4 OpenGL::lightPosition = { -2, 7, 10, 1 };
-
-///////////////////////////////////////////// OpenGL rendering variables ///////////////////////////////////////////////
-
-GLuint OpenGL::renderingProgram = 0;					// Shader's program.
-GLuint OpenGL::vao = 0;									// Vertex array object.
-
-OpenGL::GeometryBuffer* OpenGL::cube = nullptr;
-OpenGL::GeometryBuffer* OpenGL::sphere = nullptr;
-OpenGL::GeometryBuffer* OpenGL::cylinder = nullptr;
-OpenGL::GeometryBuffer* OpenGL::prism = nullptr;
-OpenGL::GeometryBuffer* OpenGL::path = nullptr;
-
-bool OpenGL::usingUniformScaling = true;
-
-map<string, Object3D> OpenGL::objectModels;				// Collection of 3D object models.
-
-//////////////////////////////////////////////// FreeType variables ////////////////////////////////////////////////////
-
-FT_Library OpenGL::ft = nullptr;
-FT_Face OpenGL::face = nullptr;
-
-GLuint OpenGL::glyphsProgram = 0;						// Glyphs shaders program.
-GLuint OpenGL::glyphsVao = 0;							// Glyphs vertex array object.
-GLuint OpenGL::glyphsBufferID = 0;						// Glyphs buffer ID.
-
-Atlas* OpenGL::atlas48 = nullptr;						// Text atlas object pointers.
-Atlas* OpenGL::atlas24 = nullptr;
-Atlas* OpenGL::atlas12 = nullptr;
-
 /**
- * Release resources.
+ * Constructor.
  */
-void OpenGL::finish()
-{
-	glDeleteVertexArrays( 1, &vao );
-	glDeleteProgram( renderingProgram );
-
-	glDeleteVertexArrays( 1, &glyphsVao );
-	glDeleteProgram( glyphsProgram );
-}
-
-/**
- * Initialize the OpenGL engine.
- */
-void OpenGL::init()
+OpenGL::OpenGL()
 {
 	// Initialize glyphs via FreeType.
 	initGlyphs();
@@ -66,7 +13,18 @@ void OpenGL::init()
 	Shaders shaders;
 	renderingProgram = shaders.compile( conf::SHADERS_FOLDER + "shader.vert", conf::SHADERS_FOLDER + "shader.frag" );
 	glGenVertexArrays( 1, &vao );
+	glBindVertexArray( vao );
 	cout << "Done!" << endl;
+}
+
+/**
+ * Release resources.
+ */
+OpenGL::~OpenGL()
+{
+	glDeleteVertexArrays( 1, &vao );
+	glDeleteProgram( renderingProgram );
+	glDeleteProgram( glyphsProgram );
 }
 
 /**
@@ -92,8 +50,6 @@ void OpenGL::initGlyphs()
 	// Initialize shaders for glyphs drawing program.
 	Shaders shaders;
 	cout << "Initializing glyph shaders... " << endl;
-	glGenVertexArrays( 1, &glyphsVao );
-	glBindVertexArray( glyphsVao );
 	glyphsProgram = shaders.compile( conf::SHADERS_FOLDER + "glyphs.vert", conf::SHADERS_FOLDER + "glyphs.frag" );
 	if( glyphsProgram == 0 )
 	{
@@ -216,13 +172,16 @@ void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
-	GLuint posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
+	auto posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
 
 	// Draw connected line segments.
-	glDrawArrays( GL_LINE_STRIP, 0, path->verticesCount );
-
-	// Disable vertex attribute array position we sent in the setSequenceInformation function.
-	glDisableVertexAttribArray( posL );
+	if( posL >= 0 )
+	{
+		glDrawArrays( GL_LINE_STRIP, 0, path->verticesCount );
+		
+		// Disable vertex attribute array position we sent in the setSequenceInformation function.
+		glDisableVertexAttribArray( posL );
+	}
 
 	if( material.ambient[3] < 1.0 )		// Restore blending if necessary.
 		glDisable( GL_BLEND );
@@ -247,22 +206,26 @@ void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
-	GLuint posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
-
-	// Overriding the point size set by the sendShadingInformation() function in vertex shader.
-	int pointSize_location = glGetUniformLocation( renderingProgram, "pointSize" );
-	glUniform1f( pointSize_location, size );
-
-	// Specify we are drawing a point --setSequenceInformation (via sendShadingInformation) sent a false, but here we'll override it with a 1.
-	int drawPoint_location = glGetUniformLocation( renderingProgram, "drawPoint" );
-	glUniform1i( drawPoint_location, true );
-
-	glEnable( GL_PROGRAM_POINT_SIZE );
-	glDrawArrays( GL_POINTS, 0, path->verticesCount );
-	glDisable( GL_PROGRAM_POINT_SIZE );
-
-	// Disable vertex attribute array position we sent in the setSequenceInformation function.
-	glDisableVertexAttribArray( posL );
+	auto posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
+	if( posL >= 0 )
+	{
+		// Overriding the point size set by the sendShadingInformation() function in vertex shader.
+		int pointSize_location = glGetUniformLocation( renderingProgram, "pointSize" );
+		if( pointSize_location >= 0 )
+			glUniform1f( pointSize_location, size );
+		
+		// Specify we are drawing a point --setSequenceInformation (via sendShadingInformation) sent a false, but here we'll override it with a 1.
+		int drawPoint_location = glGetUniformLocation( renderingProgram, "drawPoint" );
+		if( drawPoint_location >= 0 )
+			glUniform1i( drawPoint_location, true );
+		
+		glEnable( GL_PROGRAM_POINT_SIZE );
+		glDrawArrays( GL_POINTS, 0, path->verticesCount );
+		glDisable( GL_PROGRAM_POINT_SIZE );
+		
+		// Disable vertex attribute array position we sent in the setSequenceInformation function.
+		glDisableVertexAttribArray( posL );
+	}
 
 	if( material.ambient[3] < 1.0 )		// Restore blending mode.
 		glDisable( GL_BLEND );
@@ -315,23 +278,30 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
 		glBindBuffer( GL_ARRAY_BUFFER, (*G)->bufferID );
 	
 	// Set up our vertex attributes.
-	auto position_location = static_cast<GLuint>( glGetAttribLocation( renderingProgram, "position" ) );
-	glEnableVertexAttribArray( position_location );
-	glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
-	
-	auto normal_location = static_cast<GLuint>( glGetAttribLocation( renderingProgram, "normal" ) );
-	glEnableVertexAttribArray( normal_location );
-	size_t offset = sizeof(float) * (*G)->verticesCount * ELEMENTS_PER_VERTEX;
-	glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
-
-	sendShadingInformation( Projection, Camera, Model, true );
-	
-	// Draw triangles.
-	glDrawArrays( GL_TRIANGLES, 0, (*G)->verticesCount );
-
-	// Disable attribute arrays for position and normals.
-	glDisableVertexAttribArray( position_location );
-	glDisableVertexAttribArray( normal_location );
+	int position_location = glGetAttribLocation( renderingProgram, "position" );
+	int normal_location = glGetAttribLocation( renderingProgram, "normal" );
+	if( position_location >= 0 )
+	{
+		glEnableVertexAttribArray( position_location );
+		glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
+		
+		if( normal_location >= 0 )
+		{
+			glEnableVertexAttribArray( normal_location );
+			size_t offset = sizeof(float) * (*G)->verticesCount * ELEMENTS_PER_VERTEX;
+			glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
+		}
+		
+		sendShadingInformation( Projection, Camera, Model, true );
+		
+		// Draw triangles.
+		glDrawArrays( GL_TRIANGLES, 0, (*G)->verticesCount );
+		
+		// Disable attributes.
+		glDisableVertexAttribArray( position_location );
+		if( normal_location >= 0 )
+			glDisableVertexAttribArray( normal_location );
+	}
 
 	if( material.ambient[3] < 1.0 )
 		glDisable( GL_BLEND );
@@ -346,62 +316,89 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
  */
 void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong )
 {
-	// Send the model-view and projection matrices.
-	float model_matrix[ELEMENTS_PER_MATRIX];
-	float view_matrix[ELEMENTS_PER_MATRIX];
-	float proj_matrix[ELEMENTS_PER_MATRIX];
+	// Send the model, view and projection matrices (if they exist).
 	int model_location = glGetUniformLocation( renderingProgram, "Model" );
 	int view_location = glGetUniformLocation( renderingProgram, "View");
 	int proj_location = glGetUniformLocation( renderingProgram, "Projection" );
-	Tx::toOpenGLMatrix( model_matrix, Model );
-	Tx::toOpenGLMatrix( view_matrix, Camera );
-	Tx::toOpenGLMatrix( proj_matrix, Projection );
-	glUniformMatrix4fv( model_location, 1, GL_FALSE, model_matrix );
-	glUniformMatrix4fv( view_location, 1, GL_FALSE, view_matrix );
-	glUniformMatrix4fv( proj_location, 1, GL_FALSE, proj_matrix );
+	int itmv_location = glGetUniformLocation( renderingProgram, "InvTransModelView" );
+	
+	if( model_location >= 0 )		// Send model matrix only if shaders have corresponding receptor.
+	{
+		float model_matrix[ELEMENTS_PER_MATRIX];
+		Tx::toOpenGLMatrix( model_matrix, Model );
+		glUniformMatrix4fv( model_location, 1, GL_FALSE, model_matrix );
+	}
+	
+	if( view_location >= 0 )			// Send view matrix only if shaders have corresponding receptor.
+	{
+		float view_matrix[ELEMENTS_PER_MATRIX];
+		Tx::toOpenGLMatrix( view_matrix, Camera );
+		glUniformMatrix4fv( view_location, 1, GL_FALSE, view_matrix );
+	}
+	
+	if( proj_location >= 0 )			// Send projection matrix only if shaders have corresponding receptor.
+	{
+		float proj_matrix[ELEMENTS_PER_MATRIX];
+		Tx::toOpenGLMatrix( proj_matrix, Projection );
+		glUniformMatrix4fv( proj_location, 1, GL_FALSE, proj_matrix );
+	}
 
-	if( usingBlinnPhong )
+	if( usingBlinnPhong && itmv_location >= 0 )
 	{
 		float itmv_matrix[9];
 		mat33 InvTransMV = Tx::getInvTransModelView( Camera * Model, usingUniformScaling );		// The inverse transpose of the upper left 3x3 matrix in the Model View matrix.
 		Tx::toOpenGLMatrix( itmv_matrix, InvTransMV );
-		int itmv_location = glGetUniformLocation( renderingProgram, "InvTransModelView" );
 		glUniformMatrix3fv( itmv_location, 1, GL_FALSE, itmv_matrix );
 	}
 
 	// Specify if we will use phong lighting model.
 	int useBlinnPhong_location = glGetUniformLocation( renderingProgram, "useBlinnPhong" );
-	glUniform1i( useBlinnPhong_location, usingBlinnPhong );
+	if( useBlinnPhong_location >= 0 )
+		glUniform1i( useBlinnPhong_location, usingBlinnPhong );
 
 	// Specify we are not drawing points.
 	int drawPoint_location = glGetUniformLocation( renderingProgram, "drawPoint" );
-	glUniform1i( drawPoint_location, false );
+	if( drawPoint_location >= 0 )
+		glUniform1i( drawPoint_location, false );
 
-	// Set up shading.
+	// Set up lighting.
 	int lightSource_location = glGetUniformLocation( renderingProgram, "lightPosition" );
-	float ls_vector[HOMOGENEOUS_VECTOR_SIZE];
-	Tx::toOpenGLMatrix( ls_vector, Camera*lightPosition );
-	glUniform4fv( lightSource_location, 1, ls_vector );
+	if( lightSource_location >= 0 )
+	{
+		float ls_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( ls_vector, Camera*lightPosition );
+		glUniform4fv( lightSource_location, 1, ls_vector );
+	}
 
 	// Set up material shading.
 	int shininess_location = glGetUniformLocation( renderingProgram, "shininess" );
-	glUniform1f( shininess_location, material.shininess );
-
-	float ambientProd_vector[HOMOGENEOUS_VECTOR_SIZE];
-	float diffuseProd_vector[HOMOGENEOUS_VECTOR_SIZE];
-	float specularProd_vector[HOMOGENEOUS_VECTOR_SIZE];
-
-	Tx::toOpenGLMatrix( ambientProd_vector, material.ambient % lightColor );
-	Tx::toOpenGLMatrix( diffuseProd_vector, material.diffuse % lightColor );
-	Tx::toOpenGLMatrix( specularProd_vector, material.specular % lightColor );
+	if( shininess_location >= 0 )
+		glUniform1f( shininess_location, material.shininess );
 
 	int ambientProd_location = glGetUniformLocation( renderingProgram, "ambientProd" );
 	int diffuseProd_location = glGetUniformLocation( renderingProgram, "diffuseProd" );
 	int specularProd_location = glGetUniformLocation( renderingProgram, "specularProd" );
+	
+	if( ambientProd_location >= 0 )
+	{
+		float ambientProd_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( ambientProd_vector, material.ambient % lightColor );
+		glUniform4fv( ambientProd_location, 1, ambientProd_vector );
+	}
 
-	glUniform4fv( ambientProd_location, 1, ambientProd_vector );
-	glUniform4fv( diffuseProd_location, 1, diffuseProd_vector );
-	glUniform4fv( specularProd_location, 1, specularProd_vector );
+	if( diffuseProd_location >= 0 )
+	{
+		float diffuseProd_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( diffuseProd_vector, material.diffuse % lightColor );
+		glUniform4fv( diffuseProd_location, 1, diffuseProd_vector );
+	}
+	
+	if( specularProd_location >= 0 )
+	{
+		float specularProd_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( specularProd_vector, material.specular % lightColor );
+		glUniform4fv( specularProd_location, 1, specularProd_vector );
+	}
 }
 
 /**
@@ -412,7 +409,7 @@ void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camer
  * @param vertices A vector of 3D vertices.
  * @return The position attribute location in shader, so that the pointer can be disabled in the caller.
  */
-GLuint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices )
+GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices )
 {
 	if( path == nullptr )									// We haven't used this buffer before? Create it.
 	{
@@ -435,12 +432,15 @@ GLuint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Cam
 	const size_t size = sizeof(float) * totalElements;		// Size of arrays in bytes.
 	glBufferData( GL_ARRAY_BUFFER, size, vertexPositions, GL_DYNAMIC_DRAW );
 
-	// Set up our vertex attributes.
-	auto position_location = static_cast<GLuint>( glGetAttribLocation( renderingProgram, "position" ) );
-	glEnableVertexAttribArray( position_location );
-	glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
-
-	sendShadingInformation( Projection, Camera, Model, false );			// Without using phong model.
+	// Set up our vertex attributes (no normals needed).
+	int position_location = glGetAttribLocation( renderingProgram, "position" );
+	if( position_location >= 0 )
+	{
+		glEnableVertexAttribArray( position_location );
+		glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
+		
+		sendShadingInformation( Projection, Camera, Model, false );			// Without using phong model.
+	}
 
 	return position_location;
 }
@@ -584,15 +584,6 @@ GLuint OpenGL::getRenderingVao()
 GLuint OpenGL::getGlyphsProgram()
 {
 	return glyphsProgram;
-}
-
-/**
- * Get the glyphs vertex array object ID.
- * @return OpenGL VAO.
- */
-GLuint OpenGL::getGluphsVao()
-{
-	return glyphsVao;
 }
 
 /**

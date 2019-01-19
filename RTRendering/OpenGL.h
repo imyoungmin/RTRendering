@@ -38,9 +38,14 @@ private:
 	};
 	
 	// Lighting variables.
-	static Lighting material;  					// Material properties (to be changed).
-	static const vec4 lightColor;				// Light color (constant).
-	static const vec4 lightPosition;
+	Lighting material = {				// Material properties (to be changed).
+		{ 0.8, 0.8, 0.8, 1.0 },			// Ambient: k_a.
+		{ 0.8, 0.8, 0.8, 1.0 },			// Diffuse: k_d.
+		{ 0.8, 0.8, 0.8, 1.0 },			// Specular: k_s.
+		64.0							// Shininess.
+	};
+	const vec4 lightColor = { 0.9, 0.9, 0.9, 1.0 };				// Light constants.
+	const vec4 lightPosition = { -2, 7, 10, 1 };
 	
 	//////////////////////////////////////////// OpenGL rendering variables ////////////////////////////////////////////
 
@@ -51,18 +56,18 @@ private:
 	};
 	enum GeometryTypes { CUBE, SPHERE, CYLINDER, PRISM };
 	
-	static GLuint renderingProgram;				// Geom/sequence shader's program.
-	static GLuint vao;							// Geom/sequence vertex array object.
+	GLuint renderingProgram;					// Geom/sequence full color renderer's shader program.
+	GLuint vao;									// Geom/sequence vertex array object.
 	
-	static GeometryBuffer* cube;				// Buffers for solids.
-	static GeometryBuffer* sphere;
-	static GeometryBuffer* cylinder;
-	static GeometryBuffer* prism;
-	static GeometryBuffer* path;				// Buffer for dots and paths (sequences).
+	GeometryBuffer* cube = nullptr;				// Buffers for solids.
+	GeometryBuffer* sphere = nullptr;
+	GeometryBuffer* cylinder = nullptr;
+	GeometryBuffer* prism = nullptr;
+	GeometryBuffer* path = nullptr;				// Buffer for dots and paths (sequences).
 
-	static bool usingUniformScaling;			// True if only uniform scaling is used.
+	bool usingUniformScaling = true;			// True if only uniform scaling is used.
 
-	static map<string, Object3D> objectModels;	// Store 3D object models per kind.
+	map<string, Object3D> objectModels;	// Store 3D object models per kind.
 	
 	/////////////////////////////////////////////// FreeType variables /////////////////////////////////////////////////
 
@@ -73,40 +78,38 @@ private:
 		GLfloat t;
 	};
 	
-	static FT_Library ft;
-	static FT_Face face;
+	FT_Library ft = nullptr;
+	FT_Face face = nullptr;
 
-	static GLuint glyphsProgram;				// Glyphs shaders program.
-	static GLuint glyphsVao;					// Glyphs vertex array object.
-	static GLuint glyphsBufferID;				// Glyphs buffer ID.
+	GLuint glyphsProgram;						// Glyphs shaders program.
+	GLuint glyphsBufferID;						// Glyphs buffer ID.
 
-	static void sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong );
-	static GLuint setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
-	static void drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, GeometryBuffer** G, GeometryTypes t );
-	static void initGlyphs();
+	void sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong );
+	GLint setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
+	void drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, GeometryBuffer** G, GeometryTypes t );
+	void initGlyphs();
 
 public:
-	static Atlas* atlas48;
-	static Atlas* atlas24;
-	static Atlas* atlas12;
+	Atlas* atlas48 = nullptr;					// Atlases (i.e. font texture maps).
+	Atlas* atlas24 = nullptr;
+	Atlas* atlas12 = nullptr;
 
-	static void init();
-	static void finish();
-	static void setColor( float r, float g, float b, float a = 1.0f );
-	static void drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	static void drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	static void drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	static void drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	static void drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
-	static void drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size = 10.0f );
-	static void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType );
-	static void renderText( const char* text, const Atlas* a, float x, float y, float sx, float sy, const float* color );
-	static GLuint getRenderingProgram();
-	static GLuint getRenderingVao();
-	static GLuint getGlyphsProgram();
-	static GLuint getGluphsVao();
-	static void setUsingUniformScaling( bool u );
-	static void create3DObject( const char* name, const char* filename );
+	OpenGL();
+	~OpenGL();
+	void setColor( float r, float g, float b, float a = 1.0f );
+	void drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model );
+	void drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model );
+	void drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model );
+	void drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model );
+	void drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
+	void drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size = 10.0f );
+	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType );
+	void renderText( const char* text, const Atlas* a, float x, float y, float sx, float sy, const float* color );
+	GLuint getRenderingProgram();
+	GLuint getRenderingVao();
+	GLuint getGlyphsProgram();
+	void setUsingUniformScaling( bool u );
+	void create3DObject( const char* name, const char* filename );
 };
 
 #endif /* OpenGL_h */

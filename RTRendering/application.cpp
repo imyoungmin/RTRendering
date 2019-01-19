@@ -42,7 +42,7 @@ float gRetinaRatio;						// How many screen dots exist per OpenGL pixel.
 // Frame rate variables and functions.
 static const int NUM_FPS_SAMPLES = 64;
 float gFpsSamples[NUM_FPS_SAMPLES];
-int gCurrentSample = 0;
+int gCurrentSample = 0;					// Should start storing from gCurrentSample >= 1.
 
 /**
  * Calculate the number of frames per second using a window.
@@ -51,7 +51,7 @@ int gCurrentSample = 0;
  */
 float calculateFPS( float dt )
 {
-	gFpsSamples[gCurrentSample % NUM_FPS_SAMPLES] = 1.0f / dt;
+	gFpsSamples[(gCurrentSample - 1) % NUM_FPS_SAMPLES] = 1.0f / dt;
 	float fps = 0;
 	int i = 0;
 	for( i = 0; i < min( NUM_FPS_SAMPLES, gCurrentSample ); i++ )
@@ -118,7 +118,7 @@ void keyCallback( GLFWwindow* window, int key, int scancode, int action, int mod
 	if( action != GLFW_PRESS && action != GLFW_REPEAT )
 		return;
 	
-	const float rotationStep = 0.01;
+	const float rotationStep = 0.0025;
 	
 	switch( key )
 	{
@@ -299,7 +299,7 @@ int main( int argc, const char * argv[] )
 	gArcBall = new BallData;						// Initialize arc ball.
 	resetArcBall();
 	
-	OpenGL::init();									// Initialize application OpenGL.
+	OpenGL ogl;										// Initialize application OpenGL.
 	
 	double currentTime = 0.0;
 	const double timeStep = 0.01;
@@ -317,8 +317,8 @@ int main( int argc, const char * argv[] )
 	float transcurredTimePerFrame;
 	string FPS = "FPS: ";
 
-	OpenGL::setUsingUniformScaling( true );						// Important! We'll be using uniform scaling in the following scene rendering.
-	OpenGL::create3DObject( "bunny", "bunny.obj" );		// Create a 3D object model.
+	ogl.setUsingUniformScaling( true );							// Important! We'll be using uniform scaling in the following scene rendering.
+	ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
 
 	// Rendering loop.
 	while( !glfwWindowShouldClose( window ) )
@@ -342,39 +342,38 @@ int main( int argc, const char * argv[] )
 
 		/////////////////////////////////////////////// Rendering scene ////////////////////////////////////////////////
 
-		glUseProgram( OpenGL::getRenderingProgram() );		// Enable geom/sequence rendering.
-		glBindVertexArray( OpenGL::getRenderingVao() );
+		glUseProgram( ogl.getRenderingProgram() );			// Enable geom/sequence rendering.
+		glBindVertexArray( ogl.getRenderingVao() );
 		glEnable( GL_CULL_FACE );
 
-		OpenGL::setColor( 1.0, 1.0, 1.0 );					// A 3D object.
-		OpenGL::render3DObject( Proj, Camera, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), "bunny" );
+		ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
+		ogl.render3DObject( Proj, Camera, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), "bunny" );
 
-		OpenGL::setColor( 0.0, 1.0, 0.0 );					// A green sphere.
-		OpenGL::drawSphere( Proj, Camera, Model * Tx::translate( 3, 0.5, 0 ) * Tx::scale( 0.5 ) );
+		ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
+		ogl.drawSphere( Proj, Camera, Model * Tx::translate( 3, 0.5, 0 ) * Tx::scale( 0.5 ) );
 
-		OpenGL::setColor( 0.0, 0.0, 1.0 );					// A blue cylinder.
-		OpenGL::drawCylinder( Proj, Camera, Model * Tx::translate( -3, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ) );
+		ogl.setColor( 0.0, 0.0, 1.0 );						// A blue cylinder.
+		ogl.drawCylinder( Proj, Camera, Model * Tx::translate( -3, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ) );
 		
-		OpenGL::setColor( 0.9, 0.9, 1.0 );					// Ground.
-		OpenGL::drawCube( Proj, Camera, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ) );
+		ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
+		ogl.drawCube( Proj, Camera, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ) );
 
 		double theta = 2.0 * M_PI/6.0;
 		double r = 3;
 		vector<vec3> points;								// A yellow hexagon.
 		for( int i = 0; i <= 6; i++ )
 			points.emplace_back( vec3( { r * cos( i * theta + currentTime * 0.2 ) * 0.75, r * sin( i * theta + currentTime * 0.2 ) * 0.75, 0 } ) );
-		OpenGL::setColor( 1.0, 1.0, 0.0 );
-		OpenGL::drawPath( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), points );
+		ogl.setColor( 1.0, 1.0, 0.0 );
+		ogl.drawPath( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), points );
 
-		OpenGL::setColor( 0.0, 1.0, 1.0, 0.5 );				// A semi-transparent cyan set of points.
+		ogl.setColor( 0.0, 1.0, 1.0, 0.5 );					// A semi-transparent cyan set of points.
 		vector<vec3>::const_iterator first = points.begin();
 		vector<vec3>::const_iterator last = points.end() - 1;
-		OpenGL::drawPoints( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), vector<vec3>( first, last ), 20 );
+		ogl.drawPoints( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), vector<vec3>( first, last ), 20 );
 
 		/////////////////////////////////////////////// Rendering text /////////////////////////////////////////////////
 
-		glUseProgram( OpenGL::getGlyphsProgram() );			// Switch to text rendering.
-		glBindVertexArray( OpenGL::getGluphsVao() );
+		glUseProgram( ogl.getGlyphsProgram() );				// Switch to text rendering.
 
 		glEnable( GL_BLEND );
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
@@ -387,7 +386,7 @@ int main( int argc, const char * argv[] )
 		fpsStr << FPS << calculateFPS( transcurredTimePerFrame );
 		gOldTicks = gNewTicks;
 
-		OpenGL::renderText( fpsStr.str().c_str(), OpenGL::atlas24, -1 + 10 * gTextScaleX, -1 + 10 * gTextScaleY, gTextScaleX, gTextScaleY, white );
+		ogl.renderText( fpsStr.str().c_str(), ogl.atlas24, -1 + 10 * gTextScaleX, -1 + 10 * gTextScaleY, gTextScaleX, gTextScaleY, white );
 
 		glDisable( GL_BLEND );
 
@@ -395,8 +394,6 @@ int main( int argc, const char * argv[] )
 		
 		currentTime += timeStep;
 	}
-	
-	OpenGL::finish();										// Release OpenGL resources.
 	
 	glfwDestroyWindow( window );
 	glfwTerminate();
