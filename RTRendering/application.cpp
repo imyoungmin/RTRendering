@@ -39,6 +39,8 @@ int fbWidth;
 int fbHeight;
 float gRetinaRatio;						// How many screen dots exist per OpenGL pixel.
 
+OpenGL ogl;								// Initialize application OpenGL.
+
 // Frame rate variables and functions.
 static const int NUM_FPS_SAMPLES = 64;
 float gFpsSamples[NUM_FPS_SAMPLES];
@@ -221,9 +223,8 @@ void mouseScrollCallback( GLFWwindow* window, double xOffset, double yOffset )
  */
 void resizeCallback( GLFWwindow* window, int w, int h )
 {
-	fbWidth = w;
+	fbWidth = w;		// w and h are width and height of framebuffer, not window.
 	fbHeight = h;
-	glViewport( 0, 0, fbWidth, fbHeight );		// w and h are width and height of framebuffer, not window.
 
 	//Proj = Tx::frustrum( -0.5, 0.5, -0.5, 0.5, 1.0, 100 );
 
@@ -236,6 +237,45 @@ void resizeCallback( GLFWwindow* window, int w, int h )
 	glfwGetWindowSize( window, &windowW, &windowH );
 	gTextScaleX = 1.0f / windowW;
 	gTextScaleY = 1.0f / windowH;
+}
+
+/**
+ * Render the scene.
+ * @param program OpenGL program ID that contains the shaders to use for rendering the scene.
+ * @param Projection The 4x4 projection matrix to use.
+ * @param View The 4x4 view matrix.
+ * @param Model Any previously built 4x4 model matrix (usually containing current zoom and scene rotation as provided by arcball).
+ * @param currentTime Current step.
+ */
+void renderScene( GLuint program, const mat44& Projection, const mat44& View, const mat44& Model, double currentTime )
+{
+	ogl.useProgram( program );							// Render using the shaders defined for input program.
+	glEnable( GL_CULL_FACE );
+	
+	ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
+	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), "bunny" );
+	
+	ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
+	ogl.drawSphere( Projection, View, Model * Tx::translate( 3, 0.5, 0 ) * Tx::scale( 0.5 ) );
+	
+	ogl.setColor( 0.0, 0.0, 1.0 );						// A blue cylinder.
+	ogl.drawCylinder( Projection, View, Model * Tx::translate( -3, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ) );
+	
+	ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
+	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ) );
+	
+	double theta = 2.0 * M_PI/6.0;
+	double r = 3;
+	vector<vec3> points;								// A yellow hexagon.
+	for( int i = 0; i <= 6; i++ )
+		points.emplace_back( vec3( { r * cos( i * theta + currentTime * 0.2 ) * 0.75, r * sin( i * theta + currentTime * 0.2 ) * 0.75, 0 } ) );
+	ogl.setColor( 1.0, 1.0, 0.0 );
+	ogl.drawPath( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), points );
+	
+	ogl.setColor( 0.0, 1.0, 1.0, 0.5 );					// A semi-transparent cyan set of points.
+	vector<vec3>::const_iterator first = points.begin();
+	vector<vec3>::const_iterator last = points.end() - 1;
+	ogl.drawPoints( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), vector<vec3>( first, last ), 20 );
 }
 
 /**
@@ -296,10 +336,17 @@ int main( int argc, const char * argv[] )
 	cout << "Retina pixel ratio: " << gRetinaRatio << endl;
 	resizeCallback( window, fbWidth, fbHeight );
 	
-	gArcBall = new BallData;						// Initialize arc ball.
+	gArcBall = new BallData;						// Initialize arcball.
 	resetArcBall();
 	
-	OpenGL ogl;										// Initialize application OpenGL.
+	// Intialize OpenGL.
+	ogl.init();
+	
+	// Initialize shaders for geom/sequence drawing program.
+	cout << "Initializing geoms and sequence shaders... ";
+	Shaders shaders;
+	GLuint renderingProgram = shaders.compile( conf::SHADERS_FOLDER + "shader.vert", conf::SHADERS_FOLDER + "shader.frag" );		// Usual rendering.
+	cout << "Done!" << endl;
 	
 	double currentTime = 0.0;
 	const double timeStep = 0.01;
@@ -324,13 +371,9 @@ int main( int argc, const char * argv[] )
 	while( !glfwWindowShouldClose( window ) )
 	{
 		glfwPollEvents();
-
-		glClearBufferfv( GL_COLOR, 0, color );
-		glClearBufferfv( GL_DEPTH, 0, &one );
 		
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
-		mat44 Camera = Tx::lookAt( gEye, gPointOfInterest, gUp );
 		HMatrix abr;
 		Ball_Value( gArcBall, abr );
 		mat44 ArcBall = {
@@ -342,38 +385,17 @@ int main( int argc, const char * argv[] )
 
 		/////////////////////////////////////////////// Rendering scene ////////////////////////////////////////////////
 
-		glUseProgram( ogl.getRenderingProgram() );			// Enable geom/sequence rendering.
-		glBindVertexArray( ogl.getRenderingVao() );
-		glEnable( GL_CULL_FACE );
-
-		ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
-		ogl.render3DObject( Proj, Camera, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), "bunny" );
-
-		ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
-		ogl.drawSphere( Proj, Camera, Model * Tx::translate( 3, 0.5, 0 ) * Tx::scale( 0.5 ) );
-
-		ogl.setColor( 0.0, 0.0, 1.0 );						// A blue cylinder.
-		ogl.drawCylinder( Proj, Camera, Model * Tx::translate( -3, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ) );
+		mat44 Camera = Tx::lookAt( gEye, gPointOfInterest, gUp );
 		
-		ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
-		ogl.drawCube( Proj, Camera, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ) );
-
-		double theta = 2.0 * M_PI/6.0;
-		double r = 3;
-		vector<vec3> points;								// A yellow hexagon.
-		for( int i = 0; i <= 6; i++ )
-			points.emplace_back( vec3( { r * cos( i * theta + currentTime * 0.2 ) * 0.75, r * sin( i * theta + currentTime * 0.2 ) * 0.75, 0 } ) );
-		ogl.setColor( 1.0, 1.0, 0.0 );
-		ogl.drawPath( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), points );
-
-		ogl.setColor( 0.0, 1.0, 1.0, 0.5 );					// A semi-transparent cyan set of points.
-		vector<vec3>::const_iterator first = points.begin();
-		vector<vec3>::const_iterator last = points.end() - 1;
-		ogl.drawPoints( Proj, Camera, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), vector<vec3>( first, last ), 20 );
+		glViewport( 0, 0, fbWidth, fbHeight );
+		glClearBufferfv( GL_COLOR, 0, color );
+		glClearBufferfv( GL_DEPTH, 0, &one );
+		
+		renderScene( renderingProgram, Proj, Camera, Model, currentTime );
 
 		/////////////////////////////////////////////// Rendering text /////////////////////////////////////////////////
 
-		glUseProgram( ogl.getGlyphsProgram() );				// Switch to text rendering.
+		glUseProgram( ogl.getGlyphsProgram() );				// Switch to text rendering.  The text rendering is the only program created within the OpenGL class.
 
 		glEnable( GL_BLEND );
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
@@ -397,6 +419,9 @@ int main( int argc, const char * argv[] )
 	
 	glfwDestroyWindow( window );
 	glfwTerminate();
+	
+	// Delete OpenGL programs.
+	glDeleteProgram( renderingProgram );
 	
 	return 0;
 }

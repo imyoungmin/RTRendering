@@ -3,19 +3,7 @@
 /**
  * Constructor.
  */
-OpenGL::OpenGL()
-{
-	// Initialize glyphs via FreeType.
-	initGlyphs();
-
-	// Initialize shaders for geom/sequence drawing program.  To use the program, get its object from the caller and invoke glUseProgram(.).
-	cout << "Initializing geoms and sequence shaders... ";
-	Shaders shaders;
-	renderingProgram = shaders.compile( conf::SHADERS_FOLDER + "shader.vert", conf::SHADERS_FOLDER + "shader.frag" );
-	glGenVertexArrays( 1, &vao );
-	glBindVertexArray( vao );
-	cout << "Done!" << endl;
-}
+OpenGL::OpenGL(){}
 
 /**
  * Release resources.
@@ -23,8 +11,20 @@ OpenGL::OpenGL()
 OpenGL::~OpenGL()
 {
 	glDeleteVertexArrays( 1, &vao );
-	glDeleteProgram( renderingProgram );
 	glDeleteProgram( glyphsProgram );
+}
+
+/**
+ * Initialize the OpenGL object.
+ */
+void OpenGL::init()
+{
+	// Create vertex array object.
+	glGenVertexArrays( 1, &vao );
+	glBindVertexArray( vao );
+	
+	// Initialize glyphs via FreeType.
+	initGlyphs();
 }
 
 /**
@@ -560,24 +560,6 @@ void OpenGL::renderText( const char* text, const Atlas* a, float x, float y, flo
 }
 
 /**
- * Get the geom/sequence rendering program ID.
- * @return OpenGL rendering program ID.
- */
-GLuint OpenGL::getRenderingProgram()
-{
-	return renderingProgram;
-}
-
-/**
- * Get the geom/sequence rendering vertex array object ID.
- * @return OpenGL VAO.
- */
-GLuint OpenGL::getRenderingVao()
-{
-	return vao;
-}
-
-/**
  * Get the glyphs program ID.
  * @return OpenGL program ID.
  */
@@ -617,7 +599,15 @@ void OpenGL::create3DObject( const char* name, const char* filename )
 	cout << "The 3D object of kind \"" << name << "\" has been successfully allocated!" << endl;
 }
 
-
+/**
+ * Set the rendering program and start using it.
+ * @param program OpenGL program ID.
+ */
+void OpenGL::useProgram( GLuint program )
+{
+	renderingProgram = program;
+	glUseProgram( renderingProgram );
+}
 
 
 

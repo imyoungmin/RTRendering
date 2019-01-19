@@ -57,7 +57,7 @@ private:
 	enum GeometryTypes { CUBE, SPHERE, CYLINDER, PRISM };
 	
 	GLuint renderingProgram;					// Geom/sequence full color renderer's shader program.
-	GLuint vao;									// Geom/sequence vertex array object.
+	GLuint vao;									// Vertex array object.
 	
 	GeometryBuffer* cube = nullptr;				// Buffers for solids.
 	GeometryBuffer* sphere = nullptr;
@@ -67,7 +67,7 @@ private:
 
 	bool usingUniformScaling = true;			// True if only uniform scaling is used.
 
-	map<string, Object3D> objectModels;	// Store 3D object models per kind.
+	map<string, Object3D> objectModels;			// Store 3D object models per kind.
 	
 	/////////////////////////////////////////////// FreeType variables /////////////////////////////////////////////////
 
@@ -96,6 +96,7 @@ public:
 
 	OpenGL();
 	~OpenGL();
+	void init();
 	void setColor( float r, float g, float b, float a = 1.0f );
 	void drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model );
 	void drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model );
@@ -105,11 +106,10 @@ public:
 	void drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size = 10.0f );
 	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType );
 	void renderText( const char* text, const Atlas* a, float x, float y, float sx, float sy, const float* color );
-	GLuint getRenderingProgram();
-	GLuint getRenderingVao();
 	GLuint getGlyphsProgram();
 	void setUsingUniformScaling( bool u );
 	void create3DObject( const char* name, const char* filename );
+	void useProgram( GLuint program );
 };
 
 #endif /* OpenGL_h */
