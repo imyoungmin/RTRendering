@@ -253,7 +253,7 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 	glEnable( GL_CULL_FACE );
 	
 	ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
-	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), "bunny" );
+	//ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), "bunny" );
 	
 	ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
 	ogl.drawSphere( Projection, View, Model * Tx::translate( 3, 0.5, 0 ) * Tx::scale( 0.5 ) );
@@ -340,13 +340,46 @@ int main( int argc, const char * argv[] )
 	resetArcBall();
 	
 	// Intialize OpenGL.
-	ogl.init();
+	const vec3 lightPosition = { -2, 7, 10 };
+	ogl.init( lightPosition );
 	
 	// Initialize shaders for geom/sequence drawing program.
-	cout << "Initializing geoms and sequence shaders... ";
+	cout << "Initializing rendering shaders... ";
 	Shaders shaders;
 	GLuint renderingProgram = shaders.compile( conf::SHADERS_FOLDER + "shader.vert", conf::SHADERS_FOLDER + "shader.frag" );		// Usual rendering.
 	cout << "Done!" << endl;
+	
+	/////////////////////////////////////////// Setting up shadow mapping //////////////////////////////////////////////
+	
+	GLuint depthMapFBO;											// Create a framebuffer for rendering the shadow map.
+	glGenFramebuffers( 1, &depthMapFBO );
+	
+	const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;		// Texture size.
+	
+	GLuint depthMap;
+	glGenTextures( 1, &depthMap );								// Generate texture and properties.
+	glBindTexture( GL_TEXTURE_2D, depthMap );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	
+	glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );			// Attach texture as the framebuffer in the depth buffer.
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0 );
+	glDrawBuffer( GL_NONE );									// We won't render any color.
+	glReadBuffer( GL_NONE );
+	glBindFramebuffer( GL_FRAMEBUFFER, 0 );						// Unbind.
+	
+	float nearPlane = 1.0f, farPlane = 7.5f;					// Setting up the light projection matrix.
+	mat44 LightProjection = Tx::ortographic( -10, 10, -10, 10, nearPlane, farPlane );
+	
+	// Initialize shaders for shadow mapping.
+	cout << "Initializing shadow mapping shaders... ";
+	GLuint shadowMapProgram = shaders.compile( conf::SHADERS_FOLDER + "shadow.vert", conf::SHADERS_FOLDER + "shadow.frag" );
+	cout << "Done!" << endl;
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	double currentTime = 0.0;
 	const double timeStep = 0.01;
@@ -365,7 +398,7 @@ int main( int argc, const char * argv[] )
 	string FPS = "FPS: ";
 
 	ogl.setUsingUniformScaling( true );							// Important! We'll be using uniform scaling in the following scene rendering.
-	ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
+	//ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
 
 	// Rendering loop.
 	while( !glfwWindowShouldClose( window ) )
@@ -382,8 +415,19 @@ int main( int argc, const char * argv[] )
 			{ abr[2][0], abr[2][1], abr[2][2], abr[2][3] },
 			{ abr[3][0], abr[3][1], abr[3][2], abr[3][3] } };
 		mat44 Model = ArcBall.t() * Tx::scale( gZoom );
+		
+		//////////////////////////////////// First pass: render scene to depth map /////////////////////////////////////
+		
+		mat44 LightView = Tx::lookAt( lightPosition, gPointOfInterest, Tx::Y_AXIS );
+		
+		glViewport( 0, 0, SHADOW_WIDTH, SHADOW_HEIGHT );
+		glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );
+		glClear( GL_DEPTH_BUFFER_BIT );
+		
+		renderScene( shadowMapProgram, LightProjection, LightView, Model, currentTime );
+		glBindFramebuffer( GL_FRAMEBUFFER, 0 );				// Unbind: return control to normal draw framebuffer.
 
-		/////////////////////////////////////////////// Rendering scene ////////////////////////////////////////////////
+		//////////////////////////////// Second pass: render scene with shadow mapping /////////////////////////////////
 
 		mat44 Camera = Tx::lookAt( gEye, gPointOfInterest, gUp );
 		

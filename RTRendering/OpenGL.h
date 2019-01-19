@@ -38,14 +38,14 @@ private:
 	};
 	
 	// Lighting variables.
-	Lighting material = {				// Material properties (to be changed).
-		{ 0.8, 0.8, 0.8, 1.0 },			// Ambient: k_a.
-		{ 0.8, 0.8, 0.8, 1.0 },			// Diffuse: k_d.
-		{ 0.8, 0.8, 0.8, 1.0 },			// Specular: k_s.
-		64.0							// Shininess.
+	Lighting material = {						// Material properties (to be changed).
+		{ 0.8, 0.8, 0.8, 1.0 },					// Ambient: k_a.
+		{ 0.8, 0.8, 0.8, 1.0 },					// Diffuse: k_d.
+		{ 0.8, 0.8, 0.8, 1.0 },					// Specular: k_s.
+		64.0									// Shininess.
 	};
-	const vec4 lightColor = { 0.9, 0.9, 0.9, 1.0 };				// Light constants.
-	const vec4 lightPosition = { -2, 7, 10, 1 };
+	vec4 lightColor;							// Light properties.
+	vec4 lightPosition;
 	
 	//////////////////////////////////////////// OpenGL rendering variables ////////////////////////////////////////////
 
@@ -96,7 +96,7 @@ public:
 
 	OpenGL();
 	~OpenGL();
-	void init();
+	void init( const vec3& lPosition, const vec3& lColor = { 0.9, 0.9, 0.9 } );
 	void setColor( float r, float g, float b, float a = 1.0f );
 	void drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model );
 	void drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model );

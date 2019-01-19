@@ -17,7 +17,7 @@ OpenGL::~OpenGL()
 /**
  * Initialize the OpenGL object.
  */
-void OpenGL::init()
+void OpenGL::init( const vec3& lPosition, const vec3& lColor )
 {
 	// Create vertex array object.
 	glGenVertexArrays( 1, &vao );
@@ -25,6 +25,10 @@ void OpenGL::init()
 	
 	// Initialize glyphs via FreeType.
 	initGlyphs();
+	
+	// Set up light properties.
+	lightPosition = { lPosition[0], lPosition[1], lPosition[2], 1.0 };
+	lightColor = { lColor[0], lColor[1], lColor[2], 1.0 };
 }
 
 /**
