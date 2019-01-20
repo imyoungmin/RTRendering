@@ -1,5 +1,5 @@
 /**
- * OpenGL application.
+ * OpenGL main application.
  */
 
 #include <iostream>
@@ -30,8 +30,8 @@ vec3 gUp;
 bool gLocked;							// Track if mouse button is pressed down.
 bool gUsingArrowKey;					// Track if we are using the arrow keys for rotating scene.
 float gZoom;							// Camera zoom.
-const float ZOOM_IN = 1.03;
-const float ZOOM_OUT = 0.97;
+const float ZOOM_IN = 1.015;
+const float ZOOM_OUT = 0.985;
 BallData* gArcBall;						// Arc ball.
 
 // Framebuffer size metrics.
@@ -39,10 +39,12 @@ int fbWidth;
 int fbHeight;
 float gRetinaRatio;						// How many screen dots exist per OpenGL pixel.
 
+OpenGL ogl;								// Initialize application OpenGL.
+
 // Frame rate variables and functions.
 static const int NUM_FPS_SAMPLES = 64;
 float gFpsSamples[NUM_FPS_SAMPLES];
-int gCurrentSample = 0;
+unsigned char gCurrentSample = 0;		// Should start storing from gCurrentSample >= 1.
 
 /**
  * Calculate the number of frames per second using a window.
@@ -51,10 +53,14 @@ int gCurrentSample = 0;
  */
 float calculateFPS( float dt )
 {
-	gFpsSamples[gCurrentSample % NUM_FPS_SAMPLES] = 1.0f / dt;
+	gCurrentSample++;
+	gCurrentSample = max( 1, static_cast<int>( gCurrentSample ) );
+	if( dt <= 0 )
+		cout << "error" << endl;
+	gFpsSamples[(gCurrentSample - 1) % NUM_FPS_SAMPLES] = 1.0f / dt;
 	float fps = 0;
 	int i = 0;
-	for( i = 0; i < min( NUM_FPS_SAMPLES, gCurrentSample ); i++ )
+	for( i = 0; i < min( NUM_FPS_SAMPLES, static_cast<int>( gCurrentSample ) ); i++ )
 		fps += gFpsSamples[i];
 	fps /= i;
 	return fps;
@@ -118,7 +124,7 @@ void keyCallback( GLFWwindow* window, int key, int scancode, int action, int mod
 	if( action != GLFW_PRESS && action != GLFW_REPEAT )
 		return;
 	
-	const float rotationStep = 0.01;
+	const float rotationStep = 0.0025;
 	
 	switch( key )
 	{
@@ -211,6 +217,7 @@ void mousePositionCallback( GLFWwindow* window, double x, double y )
 void mouseScrollCallback( GLFWwindow* window, double xOffset, double yOffset )
 {
 	gZoom *= (yOffset > 0)? ZOOM_IN: ZOOM_OUT;
+	gZoom = max( 0.5f, min( gZoom, 2.5f ) );
 }
 
 /**
@@ -221,21 +228,60 @@ void mouseScrollCallback( GLFWwindow* window, double xOffset, double yOffset )
  */
 void resizeCallback( GLFWwindow* window, int w, int h )
 {
-	fbWidth = w;
+	fbWidth = w;		// w and h are width and height of framebuffer, not window.
 	fbHeight = h;
-	glViewport( 0, 0, fbWidth, fbHeight );		// w and h are width and height of framebuffer, not window.
 
 	//Proj = Tx::frustrum( -0.5, 0.5, -0.5, 0.5, 1.0, 100 );
 
 	// Projection used for 3D.
 	double ratio = static_cast<double>(w)/static_cast<double>(h);
-	Proj = Tx::perspective( M_PI/4.0, ratio, 0.01, 1000.0 );
+	Proj = Tx::perspective( M_PI/3.0, ratio, 0.01, 1000.0 );
 
 	// Projection used for text rendering.
 	int windowW, windowH;
 	glfwGetWindowSize( window, &windowW, &windowH );
 	gTextScaleX = 1.0f / windowW;
 	gTextScaleY = 1.0f / windowH;
+}
+
+/**
+ * Render the scene.
+ * @param program OpenGL program ID that contains the shaders to use for rendering the scene.
+ * @param Projection The 4x4 projection matrix to use.
+ * @param View The 4x4 view matrix.
+ * @param Model Any previously built 4x4 model matrix (usually containing current zoom and scene rotation as provided by arcball).
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
+ * @param currentTime Current step.
+ */
+void renderScene( GLuint program, const mat44& Projection, const mat44& View, const mat44& Model, const mat44& LightSpaceMatrix, double currentTime )
+{
+	ogl.useProgram( program );							// Render using the shaders defined for input program.
+	glEnable( GL_CULL_FACE );
+	
+	ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
+	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), LightSpaceMatrix, "bunny" );
+	
+	ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
+	ogl.drawSphere( Projection, View, Model * Tx::translate( 4, 0.5, 0 ) * Tx::scale( 0.5 ), LightSpaceMatrix );
+	
+	ogl.setColor( 0.0, 0.0, 1.0 );						// A blue cylinder.
+	ogl.drawCylinder( Projection, View, Model * Tx::translate( -4, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ), LightSpaceMatrix );
+	
+	ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
+	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ), LightSpaceMatrix );
+	
+	double theta = 2.0 * M_PI/6.0;
+	double r = 3;
+	vector<vec3> points;								// A yellow hexagon.
+	for( int i = 0; i <= 6; i++ )
+		points.emplace_back( vec3( { r * cos( i * theta + currentTime * 0.2 ) * 0.75, r * sin( i * theta + currentTime * 0.2 ) * 0.75, 0 } ) );
+	ogl.setColor( 1.0, 1.0, 0.0 );
+	ogl.drawPath( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), LightSpaceMatrix, points );
+	
+	ogl.setColor( 0.0, 1.0, 1.0, 0.5 );					// A semi-transparent cyan set of points.
+	vector<vec3>::const_iterator first = points.begin();
+	vector<vec3>::const_iterator last = points.end() - 1;
+	ogl.drawPoints( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), LightSpaceMatrix, vector<vec3>( first, last ), 20 );
 }
 
 /**
@@ -247,7 +293,7 @@ void resizeCallback( GLFWwindow* window, int w, int h )
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 0, 0, 10 };
+	gEye = { 3, 4, 9 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -270,9 +316,9 @@ int main( int argc, const char * argv[] )
 	cout << glfwGetVersionString() << endl;
 
 	// Create window object (with screen-dependent size metrics).
-	int windowWidth = 1080;
-	int windowHeight = 720;
-	window = glfwCreateWindow( windowWidth, windowHeight, "OpenGL", nullptr, nullptr );
+	int windowWidth = 1280;
+	int windowHeight = 920;
+	window = glfwCreateWindow( windowWidth, windowHeight, "Real-Time Rendering", nullptr, nullptr );
 
 	if( !window )
 	{
@@ -296,16 +342,62 @@ int main( int argc, const char * argv[] )
 	cout << "Retina pixel ratio: " << gRetinaRatio << endl;
 	resizeCallback( window, fbWidth, fbHeight );
 	
-	gArcBall = new BallData;						// Initialize arc ball.
+	gArcBall = new BallData;						// Initialize arcball.
 	resetArcBall();
 	
-	OpenGL::init();									// Initialize application OpenGL.
+	///////////////////////////////////// Intialize OpenGL and rendering shaders ///////////////////////////////////////
+	
+	const vec3 lightPosition = { -2, 12, 12 };
+	ogl.init( lightPosition );
+	
+	// Initialize shaders for geom/sequence drawing program.
+	cout << "Initializing rendering shaders... ";
+	Shaders shaders;
+	GLuint renderingProgram = shaders.compile( conf::SHADERS_FOLDER + "shader.vert", conf::SHADERS_FOLDER + "shader.frag" );		// Usual rendering.
+	cout << "Done!" << endl;
+	
+	// Initialize shaders program for shadow mapping.
+	cout << "Initializing shadow mapping shaders... ";
+	GLuint shadowMapProgram = shaders.compile( conf::SHADERS_FOLDER + "shadow.vert", conf::SHADERS_FOLDER + "shadow.frag" );
+	cout << "Done!" << endl;
+	
+	/////////////////////////////////////////// Setting up shadow mapping //////////////////////////////////////////////
+	
+	GLuint depthMapFBO;											// Create a framebuffer for rendering the shadow map.
+	glGenFramebuffers( 1, &depthMapFBO );
+	
+	const GLuint SHADOW_WIDTH = 2.5 * fbWidth, SHADOW_HEIGHT = 2.5 * fbHeight;		// Texture size.
+	
+	GLuint depthMap;
+	glGenTextures( 1, &depthMap );													// Generate texture and properties.
+	glBindTexture( GL_TEXTURE_2D, depthMap );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );		// By doing this, anything farther than the shadow map will appear in light.
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
+	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
+	glTexParameterfv( GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor );
+	
+	glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );			// Attach texture as the framebuffer in the depth buffer.
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0 );
+	glDrawBuffer( GL_NONE );									// We won't render any color.
+	glReadBuffer( GL_NONE );
+	glBindFramebuffer( GL_FRAMEBUFFER, 0 );						// Unbind.
+	
+	float nearPlane = 0.01f, farPlane = 1000.0f;				// Setting up the light projection matrix.
+	//mat44 LightProjection = Tx::ortographic( -10, 10, -10, 10, nearPlane, farPlane );
+	mat44 LightProjection = Tx::perspective( M_PI/2.0, static_cast<float>( SHADOW_WIDTH )/static_cast<float>( SHADOW_HEIGHT ), nearPlane, farPlane );
+	
+	int shadowMap_location = glGetUniformLocation( renderingProgram, "shadowMap" );
+	glUniform1i( shadowMap_location, 0 );						// Texture will be associated to unit GL_TEXTURE0.
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	double currentTime = 0.0;
 	const double timeStep = 0.01;
-	const float color[] = { 0.1, 0.1, 0.11, 1.0 };
-	const float one = 1.0;
-	const float white[] = {1.0, 1.0, 1.0, 1.0};
+	const float textColor[] = { 0.0, 0.8, 1.0, 1.0 };
+	char text[128];
 	
 	glEnable( GL_DEPTH_TEST );
 	glDepthFunc( GL_LEQUAL );
@@ -317,20 +409,17 @@ int main( int argc, const char * argv[] )
 	float transcurredTimePerFrame;
 	string FPS = "FPS: ";
 
-	OpenGL::setUsingUniformScaling( true );						// Important! We'll be using uniform scaling in the following scene rendering.
-	OpenGL::create3DObject( "bunny", "bunny.obj" );		// Create a 3D object model.
+	ogl.setUsingUniformScaling( true );							// Important! We'll be using uniform scaling in the following scene rendering.
+	ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
 
 	// Rendering loop.
 	while( !glfwWindowShouldClose( window ) )
 	{
-		glfwPollEvents();
-
-		glClearBufferfv( GL_COLOR, 0, color );
-		glClearBufferfv( GL_DEPTH, 0, &one );
+		glClearColor( 0.1f, 0.1f, 0.11f, 1.0f );
+		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 		
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
-		mat44 Camera = Tx::lookAt( gEye, gPointOfInterest, gUp );
 		HMatrix abr;
 		Ball_Value( gArcBall, abr );
 		mat44 ArcBall = {
@@ -339,46 +428,34 @@ int main( int argc, const char * argv[] )
 			{ abr[2][0], abr[2][1], abr[2][2], abr[2][3] },
 			{ abr[3][0], abr[3][1], abr[3][2], abr[3][3] } };
 		mat44 Model = ArcBall.t() * Tx::scale( gZoom );
+		
+		//////////////////////////////////// First pass: render scene to depth map /////////////////////////////////////
+		
+		mat44 LightView = Tx::lookAt( lightPosition, gPointOfInterest, Tx::Y_AXIS );
+		mat44 LightSpaceMatrix = LightProjection * LightView;
+		
+		glViewport( 0, 0, SHADOW_WIDTH, SHADOW_HEIGHT );
+		glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );
+		glClear( GL_DEPTH_BUFFER_BIT );
+		
+		renderScene( shadowMapProgram, LightProjection, LightView, Model, LightSpaceMatrix, currentTime );
+		glBindFramebuffer( GL_FRAMEBUFFER, 0 );				// Unbind: return control to normal draw framebuffer.
 
-		/////////////////////////////////////////////// Rendering scene ////////////////////////////////////////////////
+		//////////////////////////////// Second pass: render scene with shadow mapping /////////////////////////////////
 
-		glUseProgram( OpenGL::getRenderingProgram() );		// Enable geom/sequence rendering.
-		glBindVertexArray( OpenGL::getRenderingVao() );
-		glEnable( GL_CULL_FACE );
-
-		OpenGL::setColor( 1.0, 1.0, 1.0 );					// A 3D object.
-		OpenGL::render3DObject( Proj, Camera, Model * Tx::translate( 0.25, -0.5, 0 ) * Tx::scale( 0.75 ), "bunny" );
-
-		OpenGL::setColor( 0.0, 1.0, 0.0 );					// A green sphere.
-		OpenGL::drawSphere( Proj, Camera, Model * Tx::translate( 2, 0, 0 ) * Tx::scale( 0.5 ) );
-
-		OpenGL::setColor( 0.0, 0.0, 1.0 );					// A blue cylinder.
-		OpenGL::drawCylinder( Proj, Camera, Model * Tx::translate( -2, 0, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ) );
-
-		double theta = 2.0 * M_PI/6.0;
-		double r = 3;
-		vector<vec3> points;								// A yellow hexagon.
-		for( int i = 0; i <= 6; i++ )
-			points.emplace_back( vec3( { r * cos( i * theta + currentTime ) * 1.1, r * sin( i * theta + currentTime ) * 1.1, 0 } ) );
-		OpenGL::setColor( 1.0, 1.0, 0.0 );
-		OpenGL::drawPath( Proj, Camera, Model, points );
-
-		vector<vec3> points2;								// A magenta hexagon.
-		double phase = theta / 2.0;
-		for( int i = 0; i <= 6; i++ )
-			points2.emplace_back( vec3( { r * cos( i * theta + phase ), r * sin( i * theta + phase ), 0 } ) );
-		OpenGL::setColor( 1.0, 0.0, 1.0 );
-		OpenGL::drawPath( Proj, Camera, Model, points2 );
-
-		OpenGL::setColor( 0.0, 1.0, 1.0, 0.5 );				// A semi-transparent cyan set of points.
-		vector<vec3>::const_iterator first = points.begin();
-		vector<vec3>::const_iterator last = points.end() - 1;
-		OpenGL::drawPoints( Proj, Camera, Model, vector<vec3>( first, last ), 20 );
+		mat44 Camera = Tx::lookAt( gEye, gPointOfInterest, gUp );
+		
+		glViewport( 0, 0, fbWidth, fbHeight );
+		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+		
+		// Enable shadow mapping texture sampler.
+		glActiveTexture( GL_TEXTURE0 );
+		glBindTexture( GL_TEXTURE_2D, depthMap );
+		renderScene( renderingProgram, Proj, Camera, Model, LightSpaceMatrix, currentTime );
 
 		/////////////////////////////////////////////// Rendering text /////////////////////////////////////////////////
 
-		glUseProgram( OpenGL::getGlyphsProgram() );		// Switch to text rendering.
-		glBindVertexArray( OpenGL::getGluphsVao() );
+		glUseProgram( ogl.getGlyphsProgram() );				// Switch to text rendering.  The text rendering is the only program created within the OpenGL class.
 
 		glEnable( GL_BLEND );
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
@@ -386,24 +463,26 @@ int main( int argc, const char * argv[] )
 
 		gNewTicks = duration_cast<milliseconds>( system_clock::now().time_since_epoch() ).count();
 		transcurredTimePerFrame = (gNewTicks - gOldTicks) / 1000.0f;
-		ostringstream fpsStr;
-		gCurrentSample++;
-		fpsStr << FPS << calculateFPS( transcurredTimePerFrame );
+		sprintf( text, "FPS: %.2f", ( ( transcurredTimePerFrame <= 0 )? -1 : calculateFPS( transcurredTimePerFrame ) ) );
 		gOldTicks = gNewTicks;
 
-		OpenGL::renderText( fpsStr.str().c_str(), OpenGL::atlas24, -1 + 10 * gTextScaleX, -1 + 10 * gTextScaleY, gTextScaleX, gTextScaleY, white );
+		ogl.renderText( text, ogl.atlas48, -1 + 10 * gTextScaleX, 1 - 30 * gTextScaleY, gTextScaleX * 0.6, gTextScaleY * 0.6, textColor );
 
 		glDisable( GL_BLEND );
 
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
 		glfwSwapBuffers( window );
+		glfwPollEvents();
 		
 		currentTime += timeStep;
 	}
 	
-	OpenGL::finish();								// Release OpenGL resources.
-	
 	glfwDestroyWindow( window );
 	glfwTerminate();
+	
+	// Delete OpenGL programs.
+	glDeleteProgram( renderingProgram );
 	
 	return 0;
 }

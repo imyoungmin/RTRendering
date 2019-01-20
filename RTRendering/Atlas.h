@@ -1,7 +1,3 @@
-//
-// Created by Im YoungMin on 2018-12-29.
-//
-
 #ifndef OPENGL_ATLAS_H
 #define OPENGL_ATLAS_H
 

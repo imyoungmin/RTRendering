@@ -1,7 +1,3 @@
-//
-// Created by Im YoungMin on 2019-01-10.
-//
-
 #ifndef OPENGL_CONFIGURATION_H
 #define OPENGL_CONFIGURATION_H
 
