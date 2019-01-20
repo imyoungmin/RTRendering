@@ -1,7 +1,3 @@
-//
-// Created by Im YoungMin on 2019-01-10.
-//
-
 #ifndef OPENGL_OBJECT3D_H
 #define OPENGL_OBJECT3D_H
 
@@ -27,7 +23,6 @@ private:
 	GLsizei verticesCount;					// Number of vertices stored in buffer.
 
 	GLsizei getData( const vector<vec3>& inVs, const vector<vec2>& inUVs, const vector<vec3>& inNs, vector<float>& outVs, vector<float>& outUVs, vector<float>& outNs ) const;
-	static string trim( const string& str, const string& whitespace = " " );
 
 public:
 	Object3D();

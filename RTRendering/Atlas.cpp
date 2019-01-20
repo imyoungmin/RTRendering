@@ -1,7 +1,3 @@
-//
-// Created by Im YoungMin on 2018-12-29.
-//
-
 #include "Atlas.h"
 
 /**
@@ -14,7 +10,7 @@
  */
 Atlas::Atlas( FT_Face face, GLuint height, GLint uniform_tex, GLint attribute_coord, GLint uniform_color )
 {
-	FT_Set_Pixel_Sizes(face, 0, height);		// Character width is calculated automatically.
+	FT_Set_Pixel_Sizes( face, 0, height );		// Character width is calculated automatically.
 	FT_GlyphSlot g = face->glyph;
 
 	GLuint roww = 0;

@@ -44,7 +44,7 @@ void OpenGL::initGlyphs()
 	}
 
 	// Create the font face object.
-	FT_Error ft_error = FT_New_Face( ft, string(conf::FONTS_FOLDER + "cmunbmr.ttf").c_str(), 0, &face );
+	FT_Error ft_error = FT_New_Face( ft, string(conf::FONTS_FOLDER + "ubuntumonob.ttf").c_str(), 0, &face );
 	if( ft_error != FT_Err_Ok )
 	{
 		cerr << "Could not open font!" << endl;

@@ -1,5 +1,5 @@
 /**
- * OpenGL application.
+ * OpenGL main application.
  */
 
 #include <iostream>
@@ -44,7 +44,7 @@ OpenGL ogl;								// Initialize application OpenGL.
 // Frame rate variables and functions.
 static const int NUM_FPS_SAMPLES = 64;
 float gFpsSamples[NUM_FPS_SAMPLES];
-int gCurrentSample = 0;					// Should start storing from gCurrentSample >= 1.
+unsigned char gCurrentSample = 0;		// Should start storing from gCurrentSample >= 1.
 
 /**
  * Calculate the number of frames per second using a window.
@@ -53,10 +53,14 @@ int gCurrentSample = 0;					// Should start storing from gCurrentSample >= 1.
  */
 float calculateFPS( float dt )
 {
+	gCurrentSample++;
+	gCurrentSample = max( 1, static_cast<int>( gCurrentSample ) );
+	if( dt <= 0 )
+		cout << "error" << endl;
 	gFpsSamples[(gCurrentSample - 1) % NUM_FPS_SAMPLES] = 1.0f / dt;
 	float fps = 0;
 	int i = 0;
-	for( i = 0; i < min( NUM_FPS_SAMPLES, gCurrentSample ); i++ )
+	for( i = 0; i < min( NUM_FPS_SAMPLES, static_cast<int>( gCurrentSample ) ); i++ )
 		fps += gFpsSamples[i];
 	fps /= i;
 	return fps;
@@ -312,8 +316,8 @@ int main( int argc, const char * argv[] )
 	cout << glfwGetVersionString() << endl;
 
 	// Create window object (with screen-dependent size metrics).
-	int windowWidth = 1080;
-	int windowHeight = 720;
+	int windowWidth = 1280;
+	int windowHeight = 920;
 	window = glfwCreateWindow( windowWidth, windowHeight, "Real-Time Rendering", nullptr, nullptr );
 
 	if( !window )
@@ -341,7 +345,8 @@ int main( int argc, const char * argv[] )
 	gArcBall = new BallData;						// Initialize arcball.
 	resetArcBall();
 	
-	// Intialize OpenGL.
+	///////////////////////////////////// Intialize OpenGL and rendering shaders ///////////////////////////////////////
+	
 	const vec3 lightPosition = { -2, 12, 12 };
 	ogl.init( lightPosition );
 	
@@ -364,7 +369,7 @@ int main( int argc, const char * argv[] )
 	const GLuint SHADOW_WIDTH = 2.5 * fbWidth, SHADOW_HEIGHT = 2.5 * fbHeight;		// Texture size.
 	
 	GLuint depthMap;
-	glGenTextures( 1, &depthMap );								// Generate texture and properties.
+	glGenTextures( 1, &depthMap );													// Generate texture and properties.
 	glBindTexture( GL_TEXTURE_2D, depthMap );
 	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
@@ -380,15 +385,19 @@ int main( int argc, const char * argv[] )
 	glReadBuffer( GL_NONE );
 	glBindFramebuffer( GL_FRAMEBUFFER, 0 );						// Unbind.
 	
-	float nearPlane = 0.01f, farPlane = 1000.0f;					// Setting up the light projection matrix.
+	float nearPlane = 0.01f, farPlane = 1000.0f;				// Setting up the light projection matrix.
 	//mat44 LightProjection = Tx::ortographic( -10, 10, -10, 10, nearPlane, farPlane );
 	mat44 LightProjection = Tx::perspective( M_PI/2.0, static_cast<float>( SHADOW_WIDTH )/static_cast<float>( SHADOW_HEIGHT ), nearPlane, farPlane );
+	
+	int shadowMap_location = glGetUniformLocation( renderingProgram, "shadowMap" );
+	glUniform1i( shadowMap_location, 0 );						// Texture will be associated to unit GL_TEXTURE0.
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	double currentTime = 0.0;
 	const double timeStep = 0.01;
 	const float textColor[] = { 0.0, 0.8, 1.0, 1.0 };
+	char text[128];
 	
 	glEnable( GL_DEPTH_TEST );
 	glDepthFunc( GL_LEQUAL );
@@ -440,13 +449,8 @@ int main( int argc, const char * argv[] )
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 		
 		// Enable shadow mapping texture sampler.
-		int shadowMap_location = glGetUniformLocation( renderingProgram, "shadowMap" );
-		if( shadowMap_location >= 0 )
-		{
-			glUniform1i( shadowMap_location, 0 );
-			glActiveTexture( GL_TEXTURE0 );
-			glBindTexture( GL_TEXTURE_2D, depthMap );
-		}
+		glActiveTexture( GL_TEXTURE0 );
+		glBindTexture( GL_TEXTURE_2D, depthMap );
 		renderScene( renderingProgram, Proj, Camera, Model, LightSpaceMatrix, currentTime );
 
 		/////////////////////////////////////////////// Rendering text /////////////////////////////////////////////////
@@ -459,15 +463,15 @@ int main( int argc, const char * argv[] )
 
 		gNewTicks = duration_cast<milliseconds>( system_clock::now().time_since_epoch() ).count();
 		transcurredTimePerFrame = (gNewTicks - gOldTicks) / 1000.0f;
-		ostringstream fpsStr;
-		gCurrentSample++;
-		fpsStr << FPS << calculateFPS( transcurredTimePerFrame );
+		sprintf( text, "FPS: %.2f", ( ( transcurredTimePerFrame <= 0 )? -1 : calculateFPS( transcurredTimePerFrame ) ) );
 		gOldTicks = gNewTicks;
 
-		ogl.renderText( fpsStr.str().c_str(), ogl.atlas24, -1 + 10 * gTextScaleX, -1 + 10 * gTextScaleY, gTextScaleX, gTextScaleY, textColor );
+		ogl.renderText( text, ogl.atlas48, -1 + 10 * gTextScaleX, 1 - 30 * gTextScaleY, gTextScaleX * 0.6, gTextScaleY * 0.6, textColor );
 
 		glDisable( GL_BLEND );
 
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
 		glfwSwapBuffers( window );
 		glfwPollEvents();
 		
