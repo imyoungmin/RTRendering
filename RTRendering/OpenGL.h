@@ -84,9 +84,9 @@ private:
 	GLuint glyphsProgram;						// Glyphs shaders program.
 	GLuint glyphsBufferID;						// Glyphs buffer ID.
 
-	void sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong );
-	GLint setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
-	void drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, GeometryBuffer** G, GeometryTypes t );
+	void sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, bool usingBlinnPhong );
+	GLint setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices );
+	void drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, GeometryBuffer** G, GeometryTypes t );
 	void initGlyphs();
 
 public:
@@ -98,13 +98,13 @@ public:
 	~OpenGL();
 	void init( const vec3& lPosition, const vec3& lColor = { 0.9, 0.9, 0.9 } );
 	void setColor( float r, float g, float b, float a = 1.0f );
-	void drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	void drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	void drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	void drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model );
-	void drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
-	void drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size = 10.0f );
-	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType );
+	void drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix );
+	void drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix );
+	void drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix );
+	void drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix );
+	void drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices );
+	void drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices, float size = 10.0f );
+	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const char* objectType );
 	void renderText( const char* text, const Atlas* a, float x, float y, float sx, float sy, const float* color );
 	GLuint getGlyphsProgram();
 	void setUsingUniformScaling( bool u );

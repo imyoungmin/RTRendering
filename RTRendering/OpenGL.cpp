@@ -112,10 +112,11 @@ void OpenGL::setColor( float r, float g, float b, float a )
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model )
+void OpenGL::drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
 {
-	drawGeom( Projection, Camera, Model, &cube, CUBE );
+	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &cube, CUBE );
 }
 
 /**
@@ -125,10 +126,11 @@ void OpenGL::drawCube( const mat44& Projection, const mat44& Camera, const mat44
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model )
+void OpenGL::drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
 {
-	drawGeom( Projection, Camera, Model, &sphere, SPHERE );
+	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &sphere, SPHERE );
 }
 
 /**
@@ -138,10 +140,11 @@ void OpenGL::drawSphere( const mat44& Projection, const mat44& Camera, const mat
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model )
+void OpenGL::drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
 {
-	drawGeom( Projection, Camera, Model, &cylinder, CYLINDER );
+	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &cylinder, CYLINDER );
 }
 
 /**
@@ -153,10 +156,11 @@ void OpenGL::drawCylinder( const mat44& Projection, const mat44& Camera, const m
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model )
+void OpenGL::drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
 {
-	drawGeom( Projection, Camera, Model, &prism, PRISM );
+	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &prism, PRISM );
 }
 
 /**
@@ -166,9 +170,10 @@ void OpenGL::drawPrism( const mat44& Projection, const mat44& Camera, const mat4
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param vertices A vector of vec3 elements containing position information.
  */
-void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices )
+void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices )
 {
 	if( material.ambient[3] < 1.0 )		// If alpha channel in current material color is not fully opaque, enable blending for transparency.
 	{
@@ -176,7 +181,7 @@ void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
-	auto posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
+	auto posL = setSequenceInformation( Projection, Camera, Model, LightSpaceMatrix, vertices );		// Prepare drawing by sending shading information to shaders.
 
 	// Draw connected line segments.
 	if( posL >= 0 )
@@ -196,10 +201,11 @@ void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param vertices A vector of vec3 elements containing vertex positions.
  * @param size Pixel size for points.
  */
-void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size )
+void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices, float size )
 {
 	if( size < 0 )
 		size = 10.0;
@@ -210,7 +216,7 @@ void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
-	auto posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
+	auto posL = setSequenceInformation( Projection, Camera, Model, LightSpaceMatrix, vertices );		// Prepare drawing by sending shading information to shaders.
 	if( posL >= 0 )
 	{
 		// Overriding the point size set by the sendShadingInformation() function in vertex shader.
@@ -242,10 +248,11 @@ void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param G A pointer to the geometry data structure.
  * @param t Type of geometry to be drawn.
  */
-void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, GeometryBuffer** G, GeometryTypes t )
+void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, GeometryBuffer** G, GeometryTypes t )
 {
 	if( material.ambient[3] < 1.0 )		// If alpha channel in current material color is not fully opaque, enable blending.
 	{
@@ -296,7 +303,7 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
 			glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
 		}
 		
-		sendShadingInformation( Projection, Camera, Model, true );
+		sendShadingInformation( Projection, Camera, Model, LightSpaceMatrix, true );
 		
 		// Draw triangles.
 		glDrawArrays( GL_TRIANGLES, 0, (*G)->verticesCount );
@@ -316,17 +323,26 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
  * @param Projection 4x4 Projection matrix.
  * @param Camera 4x4 Camera matrix.
  * @param Model 4x4 Model matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param usingBlinnPhong Whether use phong model of flat coloring of geoms.
  */
-void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong )
+void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, bool usingBlinnPhong )
 {
-	// Send the model, view and projection matrices (if they exist).
+	// Send the model, view, projection, and light space matrices (if they exist).
 	int model_location = glGetUniformLocation( renderingProgram, "Model" );
 	int view_location = glGetUniformLocation( renderingProgram, "View");
 	int proj_location = glGetUniformLocation( renderingProgram, "Projection" );
 	int itmv_location = glGetUniformLocation( renderingProgram, "InvTransModelView" );
+	int lsm_location = glGetUniformLocation( renderingProgram, "LightSpaceMatrix" );
 	
-	if( model_location >= 0 )		// Send model matrix only if shaders have corresponding receptor.
+	if( lsm_location >= 0 )				// Send light space matrix transform if shaders have corresponding receptor.
+	{
+		float lsm_matrix[ELEMENTS_PER_MATRIX];
+		Tx::toOpenGLMatrix( lsm_matrix, LightSpaceMatrix );
+		glUniformMatrix4fv( lsm_location, 1, GL_FALSE, lsm_matrix );
+	}
+	
+	if( model_location >= 0 )			// Send model matrix only if shaders have corresponding receptor.
 	{
 		float model_matrix[ELEMENTS_PER_MATRIX];
 		Tx::toOpenGLMatrix( model_matrix, Model );
@@ -410,10 +426,11 @@ void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camer
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param vertices A vector of 3D vertices.
  * @return The position attribute location in shader, so that the pointer can be disabled in the caller.
  */
-GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices )
+GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices )
 {
 	if( path == nullptr )									// We haven't used this buffer before? Create it.
 	{
@@ -443,7 +460,7 @@ GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Came
 		glEnableVertexAttribArray( position_location );
 		glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
 		
-		sendShadingInformation( Projection, Camera, Model, false );			// Without using phong model.
+		sendShadingInformation( Projection, Camera, Model, LightSpaceMatrix, false );			// Without using phong model.
 	}
 
 	return position_location;
@@ -454,9 +471,10 @@ GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Came
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
+ * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param objectType Type of object to be rendered.
  */
-void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType )
+void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const char* objectType )
 {
 	try
 	{
@@ -480,7 +498,7 @@ void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const
 		size_t offset = sizeof(float) * o.getVerticesCount() * ELEMENTS_PER_VERTEX;
 		glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
 
-		sendShadingInformation( Projection, Camera, Model, true );
+		sendShadingInformation( Projection, Camera, Model, LightSpaceMatrix, true );
 
 		// Draw triangles.
 		glDrawArrays( GL_TRIANGLES, 0, o.getVerticesCount() );
@@ -518,7 +536,7 @@ void OpenGL::renderText( const char* text, const Atlas* a, float x, float y, flo
 	// Use the texture containing the atlas.
 	glActiveTexture( GL_TEXTURE0 );
 	glBindTexture( GL_TEXTURE_2D, a->tex );
-	glUniform1i( a->uniform_tex_loc, 0 );
+	glUniform1i( a->uniform_tex_loc, 0 );			// We are using here the unit 0 for the text sampler.
 
 	// Set up the VBO for our vertex data.
 	glEnableVertexAttribArray( a->attribute_coord_loc );
@@ -556,7 +574,7 @@ void OpenGL::renderText( const char* text, const Atlas* a, float x, float y, flo
 		coords[c++] = (GlyphPoint) { x2 + w, -y2 - h, a->c[*p].tx + a->c[*p].bw / a->w, a->c[*p].ty + a->c[*p].bh / a->h };
 	}
 
-	// Draw all the character on the screen in one go.
+	// Draw all the characters on the screen in one go.
 	glBufferData( GL_ARRAY_BUFFER, sizeof( coords ), coords, GL_DYNAMIC_DRAW );
 	glDrawArrays( GL_TRIANGLES, 0, c );
 
