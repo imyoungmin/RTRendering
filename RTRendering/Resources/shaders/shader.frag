@@ -24,10 +24,13 @@ float shadowCalculation( vec4 fpLightSpace )
 	vec3 projFrag = fpLightSpace.xyz / fpLightSpace.w;			// Perspective division: fragment is in [-1, +1].
 	projFrag = projFrag * 0.5 + 0.5;							// Normalize fragment position to [0, 1].
 	
+	if( projFrag.z > 1.0 )
+		return 0.0;												// Anything farther than the light frustrum should be lit.
+	
 	float closestDepth = texture( shadowMap, projFrag.xy ).r;	// Closest depth from light's point of view.
 	float currentDepth = projFrag.z;
 	
-	float bias = 0.001;
+	float bias = 0.000001;
 	float shadow = ( currentDepth - closestDepth > bias )? 1.0: 0.0;
 	
 	return shadow;

@@ -30,8 +30,8 @@ vec3 gUp;
 bool gLocked;							// Track if mouse button is pressed down.
 bool gUsingArrowKey;					// Track if we are using the arrow keys for rotating scene.
 float gZoom;							// Camera zoom.
-const float ZOOM_IN = 1.03;
-const float ZOOM_OUT = 0.97;
+const float ZOOM_IN = 1.015;
+const float ZOOM_OUT = 0.985;
 BallData* gArcBall;						// Arc ball.
 
 // Framebuffer size metrics.
@@ -213,6 +213,7 @@ void mousePositionCallback( GLFWwindow* window, double x, double y )
 void mouseScrollCallback( GLFWwindow* window, double xOffset, double yOffset )
 {
 	gZoom *= (yOffset > 0)? ZOOM_IN: ZOOM_OUT;
+	gZoom = max( 0.5f, min( gZoom, 2.5f ) );
 }
 
 /**
@@ -230,7 +231,7 @@ void resizeCallback( GLFWwindow* window, int w, int h )
 
 	// Projection used for 3D.
 	double ratio = static_cast<double>(w)/static_cast<double>(h);
-	Proj = Tx::perspective( M_PI/4.0, ratio, 0.01, 1000.0 );
+	Proj = Tx::perspective( M_PI/3.0, ratio, 0.01, 1000.0 );
 
 	// Projection used for text rendering.
 	int windowW, windowH;
@@ -254,13 +255,13 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 	glEnable( GL_CULL_FACE );
 	
 	ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
-	//ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), LightSpaceMatrix, "bunny" );
+	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), LightSpaceMatrix, "bunny" );
 	
 	ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
-	ogl.drawSphere( Projection, View, Model * Tx::translate( 3, 0.5, 0 ) * Tx::scale( 0.5 ), LightSpaceMatrix );
+	ogl.drawSphere( Projection, View, Model * Tx::translate( 4, 0.5, 0 ) * Tx::scale( 0.5 ), LightSpaceMatrix );
 	
 	ogl.setColor( 0.0, 0.0, 1.0 );						// A blue cylinder.
-	ogl.drawCylinder( Projection, View, Model * Tx::translate( -3, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ), LightSpaceMatrix );
+	ogl.drawCylinder( Projection, View, Model * Tx::translate( -4, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ), LightSpaceMatrix );
 	
 	ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
 	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ), LightSpaceMatrix );
@@ -288,7 +289,7 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 3, 4, 10 };
+	gEye = { 3, 4, 9 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -341,7 +342,7 @@ int main( int argc, const char * argv[] )
 	resetArcBall();
 	
 	// Intialize OpenGL.
-	const vec3 lightPosition = { -2, 7, 10 };
+	const vec3 lightPosition = { -2, 12, 12 };
 	ogl.init( lightPosition );
 	
 	// Initialize shaders for geom/sequence drawing program.
@@ -360,7 +361,7 @@ int main( int argc, const char * argv[] )
 	GLuint depthMapFBO;											// Create a framebuffer for rendering the shadow map.
 	glGenFramebuffers( 1, &depthMapFBO );
 	
-	const GLuint SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;		// Texture size.
+	const GLuint SHADOW_WIDTH = 2.5 * fbWidth, SHADOW_HEIGHT = 2.5 * fbHeight;		// Texture size.
 	
 	GLuint depthMap;
 	glGenTextures( 1, &depthMap );								// Generate texture and properties.
@@ -368,8 +369,10 @@ int main( int argc, const char * argv[] )
 	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );		// By doing this, anything farther than the shadow map will appear in light.
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
+	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
+	glTexParameterfv( GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor );
 	
 	glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );			// Attach texture as the framebuffer in the depth buffer.
 	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0 );
@@ -377,14 +380,15 @@ int main( int argc, const char * argv[] )
 	glReadBuffer( GL_NONE );
 	glBindFramebuffer( GL_FRAMEBUFFER, 0 );						// Unbind.
 	
-	float nearPlane = 0.01f, farPlane = 100.0f;					// Setting up the light projection matrix.
-	mat44 LightProjection = Tx::ortographic( -10, 10, -10, 10, nearPlane, farPlane );
+	float nearPlane = 0.01f, farPlane = 1000.0f;					// Setting up the light projection matrix.
+	//mat44 LightProjection = Tx::ortographic( -10, 10, -10, 10, nearPlane, farPlane );
+	mat44 LightProjection = Tx::perspective( M_PI/2.0, static_cast<float>( SHADOW_WIDTH )/static_cast<float>( SHADOW_HEIGHT ), nearPlane, farPlane );
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	double currentTime = 0.0;
 	const double timeStep = 0.01;
-	const float white[] = {1.0, 1.0, 1.0, 1.0};
+	const float textColor[] = { 0.0, 0.8, 1.0, 1.0 };
 	
 	glEnable( GL_DEPTH_TEST );
 	glDepthFunc( GL_LEQUAL );
@@ -397,7 +401,7 @@ int main( int argc, const char * argv[] )
 	string FPS = "FPS: ";
 
 	ogl.setUsingUniformScaling( true );							// Important! We'll be using uniform scaling in the following scene rendering.
-	//ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
+	ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
 
 	// Rendering loop.
 	while( !glfwWindowShouldClose( window ) )
@@ -460,7 +464,7 @@ int main( int argc, const char * argv[] )
 		fpsStr << FPS << calculateFPS( transcurredTimePerFrame );
 		gOldTicks = gNewTicks;
 
-		ogl.renderText( fpsStr.str().c_str(), ogl.atlas24, -1 + 10 * gTextScaleX, -1 + 10 * gTextScaleY, gTextScaleX, gTextScaleY, white );
+		ogl.renderText( fpsStr.str().c_str(), ogl.atlas24, -1 + 10 * gTextScaleX, -1 + 10 * gTextScaleY, gTextScaleX, gTextScaleY, textColor );
 
 		glDisable( GL_BLEND );
 

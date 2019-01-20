@@ -101,7 +101,7 @@ void OpenGL::setColor( float r, float g, float b, float a )
 	a = fmax( 0.0f, fmin( a, 1.0f ) );
 
 	material.diffuse = { r, g, b, a };
-	material.ambient = material.diffuse * 0.1;
+	material.ambient = material.diffuse * 0.15;
 	material.specular[3] = material.ambient[3] = a;
 }
 
