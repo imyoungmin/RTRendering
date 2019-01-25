@@ -54,7 +54,7 @@ unsigned char gCurrentSample = 0;		// Should start storing from gCurrentSample >
 float calculateFPS( float dt )
 {
 	gCurrentSample++;
-	gCurrentSample = max( 1, static_cast<int>( gCurrentSample ) );
+	gCurrentSample = static_cast<unsigned char>( max( 1, static_cast<int>( gCurrentSample ) ) );
 	if( dt <= 0 )
 		cout << "error" << endl;
 	gFpsSamples[(gCurrentSample - 1) % NUM_FPS_SAMPLES] = 1.0f / dt;
@@ -366,7 +366,8 @@ int main( int argc, const char * argv[] )
 	GLuint depthMapFBO;											// Create a framebuffer for rendering the shadow map.
 	glGenFramebuffers( 1, &depthMapFBO );
 	
-	const GLuint SHADOW_WIDTH = 2.5 * fbWidth, SHADOW_HEIGHT = 2.5 * fbHeight;		// Texture size.
+	const auto SHADOW_WIDTH = static_cast<GLuint>( fbWidth ),
+		SHADOW_HEIGHT = static_cast<GLuint>( fbHeight );							// Texture size.
 	
 	GLuint depthMap;
 	glGenTextures( 1, &depthMap );													// Generate texture and properties.
@@ -437,7 +438,7 @@ int main( int argc, const char * argv[] )
 		glViewport( 0, 0, SHADOW_WIDTH, SHADOW_HEIGHT );
 		glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );
 		glClear( GL_DEPTH_BUFFER_BIT );
-		
+
 		renderScene( shadowMapProgram, LightProjection, LightView, Model, LightSpaceMatrix, currentTime );
 		glBindFramebuffer( GL_FRAMEBUFFER, 0 );				// Unbind: return control to normal draw framebuffer.
 
@@ -466,7 +467,8 @@ int main( int argc, const char * argv[] )
 		sprintf( text, "FPS: %.2f", ( ( transcurredTimePerFrame <= 0 )? -1 : calculateFPS( transcurredTimePerFrame ) ) );
 		gOldTicks = gNewTicks;
 
-		ogl.renderText( text, ogl.atlas48, -1 + 10 * gTextScaleX, 1 - 30 * gTextScaleY, gTextScaleX * 0.6, gTextScaleY * 0.6, textColor );
+		ogl.renderText( text, ogl.atlas48, -1 + 10 * gTextScaleX, 1 - 30 * gTextScaleY, static_cast<float>( gTextScaleX * 0.6 ),
+						static_cast<float>( gTextScaleY * 0.6 ), textColor );
 
 		glDisable( GL_BLEND );
 
