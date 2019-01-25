@@ -14,6 +14,41 @@ in vec4 fragPosLightSpace;								// Position of fragment in light space (need w
 
 out vec4 color;
 
+///////////////////////////////////////// Percentage Closer Soft Shadows ///////////////////////////////////////////////
+
+const int BLOCKER_SEARCH_SIZE = 37;								// For bigger lights we need bigger search window size.
+const float W_LIGHT = 650000.0;
+const float MAX_PENUMBRA_SIZE = BLOCKER_SEARCH_SIZE;
+const float MIN_PENUMBRA_SIZE = 3.0;
+
+/**
+ * Get the average blocker depth values that are closer to the light than current depth.
+ * @param projFrag Fragment position in normalized coordinates [0, 1].
+ * @param texelSize Size of a texel.
+ * @return Average blocker depth or -1 if no blockers were found.
+ */
+float blockerSearch( vec3 projFrag, vec2 texelSize )
+{
+	int b = int( floor( BLOCKER_SEARCH_SIZE / 2.0 ) );			// Boundary for search window.
+	float currentDepth = projFrag.z;
+	float sumBlockerDepth = 0.0;
+	int blockerTexelsCount = 0;
+	for( int x = -b; x <= b; x++ )								// Iterate over the cells of the search window.
+	{
+		for( int y = -b; y <=b; y++ )
+		{
+			float d = texture( shadowMap, projFrag.xy + vec2( x, y ) * texelSize ).r;	// Depth to test.
+			if( currentDepth > d )								// A blocker? Closer to light.
+			{
+				sumBlockerDepth += d;							// Accumulate blockers depth.
+				blockerTexelsCount++;
+			}
+		}
+	}
+	
+	return ( blockerTexelsCount > 0 )? sumBlockerDepth / blockerTexelsCount : -1.0;
+}
+
 /**
  * Determine if current fragment is in shadow by comparing its depth value with the one from the light's point of view.
  * @param fpLightSpace Fragment position in light space: Proj_light * View_light * Model * position.
@@ -34,22 +69,31 @@ float shadowCalculation( vec4 fpLightSpace, float incidence )
 	float bias = max( 0.000007 * ( 1.0 - incidence ), 0.00000275 );
 
 	float shadow = 0.0;											// Accumulate shadow evaluations.
-    vec2 texelSize = 1.0 / textureSize( shadowMap, 0 );			// Retrieve the size of a texel.
-    int windowSize = 9;											//  Must be an odd number larger than 1.
-    int wB = int( floor( windowSize / 2.0 ) );
-	for( int x = -wB; x <= wB; x++ )								// Iterate over a square window of texels center at the current one.
+	vec2 texelSize = 1.0 / textureSize( shadowMap, 0 );			// Retrieve the size of a texel.
+	float dBlocker = blockerSearch( projFrag, texelSize );
+	if( dBlocker > 0 )											// Blockers detected?
 	{
-		for( int y = -wB; y <= wB; y++ )
+		int wPenumbra = int( max( MIN_PENUMBRA_SIZE, ceil( min( ( currentDepth - dBlocker ) / dBlocker * W_LIGHT, MAX_PENUMBRA_SIZE ) ) ) );
+		int windowSize = wPenumbra + ( ( wPenumbra % 2 == 0 )? 1 : 0 );		// Must be an odd number larger than 1.
+		//windowSize = 31;
+		int wB = int( floor( windowSize / 2.0 ) );
+		for( int x = -wB; x <= wB; x++ )									// Iterate over a square window of texels center at the current one.
 		{
-			float pcfDepth = texture( shadowMap, projFrag.xy + vec2( x, y ) * texelSize ).r;
-			shadow += ( currentDepth - pcfDepth > bias )? 1.0 : 0.0;
+			for( int y = -wB; y <= wB; y++ )
+			{
+				float pcfDepth = texture( shadowMap, projFrag.xy + vec2( x, y ) * texelSize ).r;
+				shadow += ( currentDepth - pcfDepth > bias )? 1.0 : 0.0;
+			}
 		}
+		shadow /= ( windowSize * windowSize );
 	}
-	shadow /= ( windowSize * windowSize );
 
 	return shadow;
 }
 
+/**
+ * Main function.
+ */
 void main( void )
 {
     vec3 ambient, diffuse, specular;
