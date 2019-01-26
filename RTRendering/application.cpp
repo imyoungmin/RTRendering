@@ -280,7 +280,7 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 6, 6, 15 };
+	gEye = { 6, 6, 12 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -334,7 +334,7 @@ int main( int argc, const char * argv[] )
 	
 	///////////////////////////////////// Intialize OpenGL and rendering shaders ///////////////////////////////////////
 	
-	const vec3 lightPosition = { -2, 12, 12 };
+	const vec3 lightPosition = { -5, 5, 5 };
 	ogl.init( lightPosition );
 	
 	// Initialize shaders for geom/sequence drawing program.
