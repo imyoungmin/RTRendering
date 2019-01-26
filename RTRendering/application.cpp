@@ -269,19 +269,6 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 	
 	ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
 	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ), LightSpaceMatrix );
-	
-	double theta = 2.0 * M_PI/6.0;
-	double r = 3;
-	vector<vec3> points;								// A yellow hexagon.
-	for( int i = 0; i <= 6; i++ )
-		points.emplace_back( vec3( { r * cos( i * theta + currentTime * 0.2 ) * 0.75, r * sin( i * theta + currentTime * 0.2 ) * 0.75, 0 } ) );
-	ogl.setColor( 1.0, 1.0, 0.0 );
-	ogl.drawPath( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), LightSpaceMatrix, points );
-	
-	ogl.setColor( 0.0, 1.0, 1.0, 0.5 );					// A semi-transparent cyan set of points.
-	vector<vec3>::const_iterator first = points.begin();
-	vector<vec3>::const_iterator last = points.end() - 1;
-	ogl.drawPoints( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), LightSpaceMatrix, vector<vec3>( first, last ), 20 );
 }
 
 /**
@@ -293,7 +280,7 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 3, 4, 9 };
+	gEye = { 6, 6, 15 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -316,8 +303,8 @@ int main( int argc, const char * argv[] )
 	cout << glfwGetVersionString() << endl;
 
 	// Create window object (with screen-dependent size metrics).
-	int windowWidth = 1280;
-	int windowHeight = 920;
+	int windowWidth = 1024;
+	int windowHeight = 1024;
 	window = glfwCreateWindow( windowWidth, windowHeight, "Real-Time Rendering", nullptr, nullptr );
 
 	if( !window )
@@ -366,18 +353,17 @@ int main( int argc, const char * argv[] )
 	GLuint depthMapFBO;											// Create a framebuffer for rendering the shadow map.
 	glGenFramebuffers( 1, &depthMapFBO );
 	
-	const auto SHADOW_WIDTH = static_cast<GLuint>( fbWidth ),
-		SHADOW_HEIGHT = static_cast<GLuint>( fbHeight );							// Texture size.
+	const auto SHADOW_SIDE_LENGTH = static_cast<GLuint>( max( fbWidth, fbHeight ) );							// Texture size.
 	
 	GLuint depthMap;
 	glGenTextures( 1, &depthMap );													// Generate texture and properties.
 	glBindTexture( GL_TEXTURE_2D, depthMap );
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_SIDE_LENGTH, SHADOW_SIDE_LENGTH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );		// By doing this, anything farther than the shadow map will appear in light.
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
-	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
+	float borderColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
 	glTexParameterfv( GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor );
 	
 	glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );			// Attach texture as the framebuffer in the depth buffer.
@@ -386,9 +372,9 @@ int main( int argc, const char * argv[] )
 	glReadBuffer( GL_NONE );
 	glBindFramebuffer( GL_FRAMEBUFFER, 0 );						// Unbind.
 	
-	float nearPlane = 0.01f, farPlane = 1000.0f;				// Setting up the light projection matrix.
-	//mat44 LightProjection = Tx::ortographic( -10, 10, -10, 10, nearPlane, farPlane );
-	mat44 LightProjection = Tx::perspective( M_PI/2.0, static_cast<float>( SHADOW_WIDTH )/static_cast<float>( SHADOW_HEIGHT ), nearPlane, farPlane );
+	float lNearPlane = 0.01f, lFarPlane = 100.0f;				// Setting up the light projection matrix.
+	float lSide = 30.0f;
+	mat44 LightProjection = Tx::ortographic( -lSide, lSide, -lSide, lSide, lNearPlane, lFarPlane );
 	
 	int shadowMap_location = glGetUniformLocation( renderingProgram, "shadowMap" );
 	glUniform1i( shadowMap_location, 0 );						// Texture will be associated to unit GL_TEXTURE0.
@@ -435,7 +421,7 @@ int main( int argc, const char * argv[] )
 		mat44 LightView = Tx::lookAt( lightPosition, gPointOfInterest, Tx::Y_AXIS );
 		mat44 LightSpaceMatrix = LightProjection * LightView;
 		
-		glViewport( 0, 0, SHADOW_WIDTH, SHADOW_HEIGHT );
+		glViewport( 0, 0, SHADOW_SIDE_LENGTH, SHADOW_SIDE_LENGTH );
 		glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );
 		glClear( GL_DEPTH_BUFFER_BIT );
 

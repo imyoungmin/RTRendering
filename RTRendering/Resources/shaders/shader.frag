@@ -16,10 +16,8 @@ out vec4 color;
 
 ///////////////////////////////////////// Percentage Closer Soft Shadows ///////////////////////////////////////////////
 
-const int BLOCKER_SEARCH_SIZE = 37;								// For bigger lights we need bigger search window size.
-const float W_LIGHT = 650000.0;
-const float MAX_PENUMBRA_SIZE = BLOCKER_SEARCH_SIZE;
-const float MIN_PENUMBRA_SIZE = 3.0;
+const float W_LIGHT = 127.0;
+const float NEAR = 0.01;
 
 /**
  * Get the average blocker depth values that are closer to the light than current depth.
@@ -29,8 +27,9 @@ const float MIN_PENUMBRA_SIZE = 3.0;
  */
 float blockerSearch( vec3 projFrag, vec2 texelSize )
 {
-	int b = int( floor( BLOCKER_SEARCH_SIZE / 2.0 ) );			// Boundary for search window.
-	float currentDepth = projFrag.z;
+	float currentDepth = projFrag.z;							// Receiver distance from light.
+	float blockerSearchSize = W_LIGHT * ( currentDepth - NEAR ) / currentDepth;
+	int b = int( max( 1.0, blockerSearchSize / 2.0 ) );			// Boundary for search window.
 	float sumBlockerDepth = 0.0;
 	int blockerTexelsCount = 0;
 	for( int x = -b; x <= b; x++ )								// Iterate over the cells of the search window.
@@ -63,21 +62,19 @@ float shadowCalculation( vec4 fpLightSpace, float incidence )
 	if( projFrag.z > 1.0 )
 		return 0.0;												// Anything farther than the light frustrum should be lit.
 	
-	float closestDepth = texture( shadowMap, projFrag.xy ).r;	// Closest depth from light's point of view.
 	float currentDepth = projFrag.z;
 
-	float bias = max( 0.000007 * ( 1.0 - incidence ), 0.00000275 );
+	float bias = max( 0.006 * ( 1.0 - incidence ), 0.0015 );
 
 	float shadow = 0.0;											// Accumulate shadow evaluations.
 	vec2 texelSize = 1.0 / textureSize( shadowMap, 0 );			// Retrieve the size of a texel.
 	float dBlocker = blockerSearch( projFrag, texelSize );
 	if( dBlocker > 0 )											// Blockers detected?
 	{
-		int wPenumbra = int( max( MIN_PENUMBRA_SIZE, ceil( min( ( currentDepth - dBlocker ) / dBlocker * W_LIGHT, MAX_PENUMBRA_SIZE ) ) ) );
-		int windowSize = wPenumbra + ( ( wPenumbra % 2 == 0 )? 1 : 0 );		// Must be an odd number larger than 1.
-		//windowSize = 31;
-		int wB = int( floor( windowSize / 2.0 ) );
-		for( int x = -wB; x <= wB; x++ )									// Iterate over a square window of texels center at the current one.
+		int wPenumbra = int( ( currentDepth - dBlocker ) / dBlocker * W_LIGHT );
+//		int wPenumbra = 15;
+		int wB = int( max( 1.0, wPenumbra / 2.0 ) );
+		for( int x = -wB; x <= wB; x++ )						// Iterate over a square window of texels center at the current one.
 		{
 			for( int y = -wB; y <= wB; y++ )
 			{
@@ -85,7 +82,7 @@ float shadowCalculation( vec4 fpLightSpace, float incidence )
 				shadow += ( currentDepth - pcfDepth > bias )? 1.0 : 0.0;
 			}
 		}
-		shadow /= ( windowSize * windowSize );
+		shadow /= ( pow( 2.0 * wB + 1.0, 2.0 ) );
 	}
 
 	return shadow;
