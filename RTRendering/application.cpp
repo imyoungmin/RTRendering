@@ -363,7 +363,7 @@ int main( int argc, const char * argv[] )
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );		// By doing this, anything farther than the shadow map will appear in light.
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
-	float borderColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
+	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
 	glTexParameterfv( GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor );
 	
 	glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );			// Attach texture as the framebuffer in the depth buffer.
