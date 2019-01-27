@@ -1,7 +1,8 @@
 #version 410 core
 
 uniform vec4 lightPosition;								// In camera coordinates.
-uniform vec4 ambientProd, diffuseProd, specularProd;	// The [r,g,b,a] element-wise products k_a*I, k_d*I, and k_s*I for ambient, diffuse, and specular lighting, respectively.
+uniform vec3 lightColor;								// Only RGB.
+uniform vec4 ambient, diffuse, specular;				// The [r,g,b,a] ambient, diffuse, and specular material properties, respectively.
 uniform float shininess;
 uniform bool useBlinnPhong;
 uniform bool drawPoint;
@@ -217,14 +218,14 @@ float PCSS( vec4 coords, float incidence )
  */
 void main( void )
 {
-    vec3 ambient, diffuse, specular;
-    float alpha = ambientProd.a;
+    vec3 ambientColor = ambient.rgb, diffuseColor = diffuse.rgb, specularColor = specular.rgb;
+    float alpha = ambient.a;
     float shadow;
 
     if( useBlinnPhong )
     {
         vec3 N = normalize( vNormal );
-        vec3 E = normalize( -vPosition.xyz );
+        vec3 E = normalize( -vPosition );
         vec3 L = normalize( lightPosition.xyz - vPosition );
 
         vec3 H = normalize( L + E );
@@ -232,32 +233,30 @@ void main( void )
 
         // Diffuse component.
         float cDiff = max( incidence, 0.0 );
-        diffuse = cDiff * diffuseProd.rgb;
+        diffuseColor = cDiff * diffuse.rgb;
 
         // Ambient component.
-        ambient = ambientProd.rgb;
+        ambientColor = ambient.rgb * lightColor;
 
         // Specular component.
-        if( incidence > 0 )
+        if( incidence > 0 && shininess > 0.0 )		// Negative shininess turns off specular component.
         {
         	float cSpec = pow( max( dot( N, H ), 0.0 ), shininess );
-        	specular = cSpec * specularProd.rgb;
+        	specularColor = cSpec * specular.rgb;
         }
         else
-        	specular = vec3( 0.0, 0.0, 0.0 );
+        	specularColor = vec3( 0.0, 0.0, 0.0 );
 
         shadow = PCSS( fragPosLightSpace, incidence );
     }
     else
     {
-        ambient = ambientProd.rgb;
-        diffuse = diffuseProd.rgb;
-        specular = vec3( 0.0, 0.0, 0.0 );
+        specularColor = vec3( 0.0, 0.0, 0.0 );
         shadow = PCSS( fragPosLightSpace, 1 );
     }
 	
     // Final fragment color.
-    vec3 totalColor = ambient + ( 1.0 - shadow ) * ( diffuse + specular );
+    vec3 totalColor = ambientColor + ( 1.0 - shadow ) * ( diffuseColor + specularColor ) * lightColor;
     if( drawPoint )
     {
         if( dot( gl_PointCoord-0.5, gl_PointCoord - 0.5 ) > 0.25 )		// For rounded points.

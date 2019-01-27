@@ -29,6 +29,8 @@ vec3 gUp;
 
 bool gLocked;							// Track if mouse button is pressed down.
 bool gUsingArrowKey;					// Track if we are using the arrow keys for rotating scene.
+bool gRotatingLights;					// Enable/disable rotating lights about the scene.
+bool gRotatingCamera;					// Enable/disable rotating camera.
 float gZoom;							// Camera zoom.
 const float ZOOM_IN = 1.015;
 const float ZOOM_OUT = 0.985;
@@ -40,6 +42,9 @@ int fbHeight;
 float gRetinaRatio;						// How many screen dots exist per OpenGL pixel.
 
 OpenGL ogl;								// Initialize application OpenGL.
+
+// Lights.
+vec3 lightPosition;
 
 // Frame rate variables and functions.
 static const int NUM_FPS_SAMPLES = 64;
@@ -146,6 +151,14 @@ void keyCallback( GLFWwindow* window, int key, int scancode, int action, int mod
 		case GLFW_KEY_R:
 			resetArcBall();
 			gZoom = 1.0;
+			break;
+		case GLFW_KEY_L:
+			if( !gRotatingCamera )				// Avoid rotating camera and lights at the same time.
+				gRotatingLights = !gRotatingLights;
+			break;
+		case GLFW_KEY_C:
+			if( !gRotatingLights )
+				gRotatingCamera = !gRotatingCamera;
 			break;
 		default: return;
 	}
@@ -258,17 +271,22 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 	ogl.useProgram( program );							// Render using the shaders defined for input program.
 	glEnable( GL_CULL_FACE );
 	
-	ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
-	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), LightSpaceMatrix, "bunny" );
+	// Set and send the lighting properties.
+	ogl.setLighting( lightPosition, LightSpaceMatrix, View );
 	
-	ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
-	ogl.drawSphere( Projection, View, Model * Tx::translate( 4, 0.5, 0 ) * Tx::scale( 0.5 ), LightSpaceMatrix );
+	ogl.setColor( 1.0, 1.0, 1.0 );						// Columns.
+	float r = 6.0f;
+	for( int i = 0; i < 4; i++ )
+	{
+		float angle = M_PI/4.0 + i * M_PI/2.0;
+		ogl.render3DObject( Projection, View, Model * Tx::scale( 0.75 ) * Tx::translate( r *sin( angle ), 0, r * cos( angle ) ), "column" );
+	}
 	
-	ogl.setColor( 0.0, 0.0, 1.0 );						// A blue cylinder.
-	ogl.drawCylinder( Projection, View, Model * Tx::translate( -4, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ), LightSpaceMatrix );
+	ogl.setColor( 0.0, 1.0, 1.0 );						// Dragon.
+	ogl.render3DObject( Projection, View, Model * Tx::rotate( M_PI/2.0, Tx::Y_AXIS ) * Tx::scale( 0.75 ), "dragon" );
 	
-	ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
-	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ), LightSpaceMatrix );
+	ogl.setColor( 0.9, 0.9, 1.0, 1.0, -1.0 );			// Ground (no specular component)
+	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ) );
 }
 
 /**
@@ -280,10 +298,12 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 6, 6, 12 };
+	gEye = { 6, 4, 14 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
+	gRotatingLights = false;			// Start with still lights.
+	gRotatingCamera = false;
 	gUsingArrowKey = false;				// Track pressing action of arrow keys.
 	gZoom = 1.0;						// Camera zoom.
 	
@@ -334,8 +354,7 @@ int main( int argc, const char * argv[] )
 	
 	///////////////////////////////////// Intialize OpenGL and rendering shaders ///////////////////////////////////////
 	
-	const vec3 lightPosition = { -5, 5, 5 };
-	ogl.init( lightPosition );
+	ogl.init();
 	
 	// Initialize shaders for geom/sequence drawing program.
 	cout << "Initializing rendering shaders... ";
@@ -397,8 +416,18 @@ int main( int argc, const char * argv[] )
 	string FPS = "FPS: ";
 
 	ogl.setUsingUniformScaling( true );							// Important! We'll be using uniform scaling in the following scene rendering.
-	ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
+	ogl.create3DObject( "column", "column.obj" );				// Create a 3D object models.
+	ogl.create3DObject( "dragon", "dragon.obj" );
 
+	lightPosition = { -5, 5, 5 };
+	float lightY = lightPosition[1];							// Build light components from its initial value.
+	float lightXZRadius = sqrt( lightPosition[0]*lightPosition[0] + lightPosition[2]*lightPosition[2] );
+	float lAngle = atan2( lightPosition[0], lightPosition[2] );
+	
+	float eyeY = gEye[1];										// Build eye components from its intial value.
+	float eyeXZRadius = sqrt( gEye[0]*gEye[0] + gEye[2]*gEye[2] );
+	float eyeAngle = atan2( gEye[0], gEye[2] );
+	
 	// Rendering loop.
 	while( !glfwWindowShouldClose( window ) )
 	{
@@ -416,6 +445,14 @@ int main( int argc, const char * argv[] )
 			{ abr[3][0], abr[3][1], abr[3][2], abr[3][3] } };
 		mat44 Model = ArcBall.t() * Tx::scale( gZoom );
 		
+		///////////////////////////////////////// Define new lights' positions /////////////////////////////////////////
+		
+		if( gRotatingLights )								// Check rotating lights is enabled (with key 'L').
+		{
+			lAngle += 0.001 * M_PI;
+			lightPosition = { lightXZRadius * sin( lAngle ), lightY, lightXZRadius * cos( lAngle ) };
+		}
+		
 		//////////////////////////////////// First pass: render scene to depth map /////////////////////////////////////
 		
 		mat44 LightView = Tx::lookAt( lightPosition, gPointOfInterest, Tx::Y_AXIS );
@@ -430,6 +467,12 @@ int main( int argc, const char * argv[] )
 
 		//////////////////////////////// Second pass: render scene with shadow mapping /////////////////////////////////
 
+		if( gRotatingCamera )
+		{
+			eyeAngle += 0.001 * M_PI;
+			gEye = { eyeXZRadius * sin( eyeAngle ), eyeY, eyeXZRadius * cos( eyeAngle ) };
+		}
+		
 		mat44 Camera = Tx::lookAt( gEye, gPointOfInterest, gUp );
 		
 		glViewport( 0, 0, fbWidth, fbHeight );

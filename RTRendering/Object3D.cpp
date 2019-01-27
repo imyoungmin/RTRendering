@@ -122,19 +122,18 @@ void Object3D::loadOBJ( const char* filename, vector<vec3 >& outVertices, vector
 			normalIndices.push_back( normalIndex[1] );
 			normalIndices.push_back( normalIndex[2] );
 			
-			nFaces++;
-			
+			nFaces++;			
 		}
 		else
 		{
-			if( !fgets( buffer, 128, file ) )		// No matching headliner?  Finish reading the whole line.
-				break;								// Reached end of file?
+			if( !fgets( buffer, 128, file ) )				// No matching headliner?  Finish reading the whole line.
+				break;										// Reached end of file?
 		}
 	}
 	
 	fclose( file );
 	
-	if( uvIndices.size() != nFaces )						// Did we read an inconsistent number of UV texture indices?
+	if( uvIndices.size() != nFaces * 3 )					// Did we read an inconsistent number of UV texture indices?
 	{
 		cout << "WARNING! The UV information is incomplete or missing -- it'll be ignored" << endl;
 		uvIndices.clear();
