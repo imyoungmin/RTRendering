@@ -98,7 +98,7 @@ void OpenGL::setColor( float r, float g, float b, float a, float shininess )
 	a = fmax( 0.0f, fmin( a, 1.0f ) );
 
 	material.diffuse = { r, g, b, a };
-	material.ambient = material.diffuse * 0.15;
+	material.ambient = material.diffuse * 0.1;
 	material.specular[3] = material.ambient[3] = a;
 	material.shininess = fmin( shininess, 128.0f );
 }
@@ -315,8 +315,9 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
  * @param Camera 4x4 Camera matrix.
  * @param Model 4x4 Model matrix.
  * @param usingBlinnPhong Whether use phong model of flat coloring of geoms.
+ * @param usingTexture Whether to render with just colors or with a loaded texture (usually for 3D object models).
  */
-void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong )
+void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong, bool usingTexture )
 {
 	// Send the model, view, projection, and light space matrices (if they exist).
 	int model_location = glGetUniformLocation( renderingProgram, "Model" );
@@ -362,6 +363,11 @@ void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camer
 	int drawPoint_location = glGetUniformLocation( renderingProgram, "drawPoint" );
 	if( drawPoint_location >= 0 )
 		glUniform1i( drawPoint_location, false );
+	
+	// Specify if we'll use texture as diffuse component in fragment shader.
+	int useTexture_location = glGetUniformLocation( renderingProgram, "useTexture" );
+	if( useTexture_location != -1 )
+		glUniform1i( useTexture_location, usingTexture );
 
 	// Set up material shading.
 	int shininess_location = glGetUniformLocation( renderingProgram, "shininess" );
@@ -444,8 +450,9 @@ GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Came
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
  * @param objectType Type of object to be rendered.
+ * @param useTexture Whether or not use texture loaded for object.
  */
-void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType )
+void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType, bool useTexture )
 {
 	try
 	{
@@ -459,24 +466,48 @@ void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const
 
 		glBindBuffer( GL_ARRAY_BUFFER, o.getBufferID() );
 
-		// Set up our vertex attributes.
-		auto position_location = static_cast<GLuint>( glGetAttribLocation( renderingProgram, "position" ) );
-		glEnableVertexAttribArray( position_location );
-		glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
-
-		auto normal_location = static_cast<GLuint>( glGetAttribLocation( renderingProgram, "normal" ) );
-		glEnableVertexAttribArray( normal_location );
-		size_t offset = sizeof(float) * o.getVerticesCount() * ELEMENTS_PER_VERTEX;
-		glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
-
-		sendShadingInformation( Projection, Camera, Model, true );
-
-		// Draw triangles.
-		glDrawArrays( GL_TRIANGLES, 0, o.getVerticesCount() );
-
-		// Disable attribute arrays for position and normals.
-		glDisableVertexAttribArray( position_location );
-		glDisableVertexAttribArray( normal_location );
+		// Set up our vertex (and texture) attributes.
+		GLint position_location = glGetAttribLocation( renderingProgram, "position" );
+		GLint normal_location = glGetAttribLocation( renderingProgram, "normal" );
+		GLint texCoords_location = glGetAttribLocation( renderingProgram, "texCoords" );
+		if( position_location != -1 )		// Need to have at least the vertices positions to render.
+		{
+			glEnableVertexAttribArray( position_location );
+			glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
+			
+			size_t offset = sizeof(float) * o.getVerticesCount() * ELEMENTS_PER_VERTEX;
+			
+			if( normal_location != -1 )		// Do we need normals?
+			{
+				glEnableVertexAttribArray( normal_location );
+				glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
+			}
+			
+			if( texCoords_location != -1 && useTexture && o.hasTexture() )			// Do we want to render with texture instead of color?
+			{
+				glEnableVertexAttribArray( texCoords_location );
+				glVertexAttribPointer( texCoords_location, TEX_ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset * 2 ) );
+				
+				// Enable texture rendering.
+				glActiveTexture( GL_TEXTURE1 );										// Recall for objects we assigned texture unit 1.
+				glBindTexture( GL_TEXTURE_2D, o.getTextureID() );
+				glUniform1i( glGetUniformLocation( renderingProgram, "objectTexture" ), 1 );		// And tell OpenGL so.
+			}
+			else
+				useTexture = false;
+			
+			sendShadingInformation( Projection, Camera, Model, true, useTexture );	// Indicate we are using texture if the above condition holds.
+			
+			// Draw triangles.
+			glDrawArrays( GL_TRIANGLES, 0, o.getVerticesCount() );
+			
+			// Disable attribute arrays for position and normals.
+			glDisableVertexAttribArray( position_location );
+			if( normal_location != -1 )
+				glDisableVertexAttribArray( normal_location );
+			if( texCoords_location != -1 )
+				glDisableVertexAttribArray( texCoords_location );
+		}
 
 		if( material.ambient[3] < 1.0 )
 			glDisable( GL_BLEND );
@@ -574,8 +605,9 @@ void OpenGL::setUsingUniformScaling( bool u )
  * Load a new type of 3D object and allocate its necessary OpenGL rendering objects.
  * @param name User-defined object type name.
  * @param filename *.obj filename that contains the 3D triangular mesh.
+ * @param textureFilename Object's texture if needed.
  */
-void OpenGL::create3DObject( const char* name, const char* filename )
+void OpenGL::create3DObject( const char* name, const char* filename, const char* textureFilename )
 {
 	// Check if the object we want to create already exists.  If so, empty its buffer and recreate it.
 	string sName = string( name );
@@ -585,10 +617,13 @@ void OpenGL::create3DObject( const char* name, const char* filename )
 		Object3D o = it->second;
 		cout << "WARNING!  You are attempting to create a new type of 3D object with an existing name.  The old one will be replaced!" << endl;
 		GLuint bufferID = o.getBufferID();
-		glDeleteBuffers( 1, &bufferID );			// Empty buffer.
+		GLuint textureID = o.getTextureID();
+		glDeleteBuffers( 1, &bufferID );			// Empty buffer and texture.
+		if( o.hasTexture() && glIsTexture( textureID ) )
+			glDeleteTextures( 1, &textureID );
 	}
 
-	objectModels[sName] = Object3D( name, filename );
+	objectModels[sName] = Object3D( name, filename, textureFilename );
 	cout << "The 3D object of kind \"" << name << "\" has been successfully allocated!" << endl;
 }
 

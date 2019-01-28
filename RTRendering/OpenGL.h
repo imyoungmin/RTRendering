@@ -6,6 +6,7 @@
 #define ELEMENTS_PER_MATRIX		16
 #define HOMOGENEOUS_VECTOR_SIZE	4
 #define VECTOR_SIZE_3D			3
+#define TEX_ELEMENTS_PER_VERTEX	2
 
 #include <iostream>
 #include <armadillo>
@@ -83,7 +84,7 @@ private:
 	GLuint glyphsProgram;						// Glyphs shaders program.
 	GLuint glyphsBufferID;						// Glyphs buffer ID.
 
-	void sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong );
+	void sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong, bool usingTexture = false );
 	GLint setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
 	void drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, GeometryBuffer** G, GeometryTypes t );
 	void initGlyphs();
@@ -103,11 +104,11 @@ public:
 	void drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model );
 	void drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
 	void drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size = 10.0f );
-	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType );
+	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType, bool useTexture = false );
 	void renderText( const char* text, const Atlas* a, float x, float y, float sx, float sy, const float* color );
 	GLuint getGlyphsProgram();
 	void setUsingUniformScaling( bool u );
-	void create3DObject( const char* name, const char* filename );
+	void create3DObject( const char* name, const char* filename, const char* textureFilename = nullptr );
 	void useProgram( GLuint program );
 	void setLighting( const vec3& lPosition, const mat44& LightSpaceMatrix, const mat44& View, const vec3& lColor = { 0.9, 0.9, 0.9 } );
 };

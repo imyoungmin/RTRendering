@@ -2,6 +2,7 @@
 
 in vec3 position;
 in vec3 normal;
+in vec2 texCoords;
 
 uniform mat4 Model;										// Model transform takes points from model into world coordinates.
 uniform mat4 View;										// View matrix takes points from world into camera coordinates.
@@ -14,6 +15,7 @@ uniform bool useBlinnPhong;
 out vec3 vPosition;										// Position in view (camera) coordinates.
 out vec3 vNormal;										// Normal vector in view coordinates.
 out vec4 fragPosLightSpace;								// Position of fragment in light space (need w component for manual perspective division).
+out vec2 oTexCoords;									// Interpolate texture coordinates into fragment shader.
 
 void main( void )
 {
@@ -28,4 +30,5 @@ void main( void )
 
 	gl_PointSize = pointSize;
 	fragPosLightSpace = LightSpaceMatrix * Model * p;	// Send vertex position in light space projected coordinates.
+	oTexCoords = texCoords;
 }

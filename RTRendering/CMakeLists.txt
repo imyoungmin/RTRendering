@@ -11,7 +11,8 @@ add_executable(RTRendering application.cpp
         Atlas.h Atlas.cpp
         Configuration.h
         Object3D.h Object3D.cpp
-        Transformations.h Transformations.cpp)
+        Transformations.h Transformations.cpp
+		stb_image.h)
 
 target_link_libraries(RTRendering
         "-framework OpenGL"

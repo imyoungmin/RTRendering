@@ -274,19 +274,21 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 	// Set and send the lighting properties.
 	ogl.setLighting( lightPosition, LightSpaceMatrix, View );
 	
-	ogl.setColor( 1.0, 1.0, 1.0 );						// Columns.
+	ogl.setColor( 0.9, 0.9, 0.9, 1.0, 32.0 );			// Columns.
 	float r = 6.0f;
 	for( int i = 0; i < 4; i++ )
 	{
 		float angle = M_PI/4.0 + i * M_PI/2.0;
-		ogl.render3DObject( Projection, View, Model * Tx::scale( 0.75 ) * Tx::translate( r *sin( angle ), 0, r * cos( angle ) ), "column" );
+		ogl.render3DObject( Projection, View, Model * Tx::translate( r *sin( angle ), 0, r * cos( angle ) ), "column", true );	// Use texture.
 	}
 	
 	ogl.setColor( 0.0, 1.0, 1.0 );						// Dragon.
-	ogl.render3DObject( Projection, View, Model * Tx::rotate( M_PI/2.0, Tx::Y_AXIS ) * Tx::scale( 0.75 ), "dragon" );
+	ogl.render3DObject( Projection, View, Model * Tx::rotate( M_PI/2.0, Tx::Y_AXIS ), "dragon" );
 	
-	ogl.setColor( 0.9, 0.9, 1.0, 1.0, -1.0 );			// Ground (no specular component)
-	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ) );
+	ogl.setColor( 0.8, 0.8, 0.8, 1.0, 16.0 );			// Ground with tiles (no specular component)
+	for( int i = -9; i <= 9; i++ )
+		for( int j = -9; j <= 9; j++ )
+			ogl.render3DObject( Projection, View, Model * Tx::translate( i, 0, j ) * Tx::scale( 0.495 ), "tile", true );
 }
 
 /**
@@ -298,7 +300,7 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 6, 4, 14 };
+	gEye = { 0, 3, 13 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -396,7 +398,6 @@ int main( int argc, const char * argv[] )
 	mat44 LightProjection = Tx::ortographic( -lSide, lSide, -lSide, lSide, lNearPlane, lFarPlane );
 	
 	int shadowMap_location = glGetUniformLocation( renderingProgram, "shadowMap" );
-	glUniform1i( shadowMap_location, 0 );						// Texture will be associated to unit GL_TEXTURE0.
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -416,10 +417,11 @@ int main( int argc, const char * argv[] )
 	string FPS = "FPS: ";
 
 	ogl.setUsingUniformScaling( true );							// Important! We'll be using uniform scaling in the following scene rendering.
-	ogl.create3DObject( "column", "column.obj" );				// Create a 3D object models.
+	ogl.create3DObject( "column", "column.obj", "Minoan_column_b.png" );	// Create 3D object models.
 	ogl.create3DObject( "dragon", "dragon.obj" );
+	ogl.create3DObject( "tile", "tile.obj", "Iron_Plate_DIF.png" );
 
-	lightPosition = { -5, 5, 5 };
+	lightPosition = { -5, 10, 5 };
 	float lightY = lightPosition[1];							// Build light components from its initial value.
 	float lightXZRadius = sqrt( lightPosition[0]*lightPosition[0] + lightPosition[2]*lightPosition[2] );
 	float lAngle = atan2( lightPosition[0], lightPosition[2] );
@@ -431,7 +433,7 @@ int main( int argc, const char * argv[] )
 	// Rendering loop.
 	while( !glfwWindowShouldClose( window ) )
 	{
-		glClearColor( 0.1f, 0.1f, 0.11f, 1.0f );
+		glClearColor( 0.0f, 0.0f, 0.01f, 1.0f );
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 		
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -481,6 +483,7 @@ int main( int argc, const char * argv[] )
 		// Enable shadow mapping texture sampler.
 		glActiveTexture( GL_TEXTURE0 );
 		glBindTexture( GL_TEXTURE_2D, depthMap );
+		glUniform1i( shadowMap_location, 0 );				// Shadow map is associated to unit GL_TEXTURE0.
 		renderScene( renderingProgram, Proj, Camera, Model, LightSpaceMatrix, currentTime );
 
 		/////////////////////////////////////////////// Rendering text /////////////////////////////////////////////////

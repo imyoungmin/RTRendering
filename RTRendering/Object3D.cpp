@@ -9,10 +9,12 @@ Object3D::Object3D() = default;
  * 3D model constructor.
  * @param type Unique kind name for this model.
  * @param filename OBJ filename.
+ * @param textureFilename Texture image file name: nullptr to not use texture.
  */
-Object3D::Object3D( const char* type, const char* filename )
+Object3D::Object3D( const char* type, const char* filename, const char* textureFilename )
 {
 	kind = string( type );
+	withTexture = false;
 
 	// Load the 3D model from the provided filename.
 	cout << "Loading 3D model \"" << kind << "\" from file: \"" << filename << "\"... " << endl;
@@ -28,11 +30,43 @@ Object3D::Object3D( const char* type, const char* filename )
 	vector<float> normalComponents;
 	verticesCount = getData( vertices, uvs, normals, vertexPositions, textureCoordinates, normalComponents );
 
-	// So far we don't allocate texture coordinates.
-	const size_t size = sizeof(float) * vertexPositions.size();				// Size of arrays in bytes.
-	glBufferData( GL_ARRAY_BUFFER, 2 * size, nullptr, GL_STATIC_DRAW );
-	glBufferSubData( GL_ARRAY_BUFFER, 0, size, vertexPositions.data() );	// Copy positions and normals data.
-	glBufferSubData( GL_ARRAY_BUFFER, size, size, normalComponents.data() );
+	// Allocate space for vertex and texture coordinates.
+	const size_t size3D = sizeof(float) * vertexPositions.size();							// Size of positions arrays in bytes.
+	const size_t sizeUV = sizeof(float) * textureCoordinates.size();
+	glBufferData( GL_ARRAY_BUFFER, 2 * size3D + sizeUV, nullptr, GL_STATIC_DRAW );
+	glBufferSubData( GL_ARRAY_BUFFER, 0, size3D, vertexPositions.data() );					// Copy positions.
+	glBufferSubData( GL_ARRAY_BUFFER, size3D, size3D, normalComponents.data() );			// Copy normals.
+	if( textureFilename != nullptr )
+	{
+		glBufferSubData( GL_ARRAY_BUFFER, 2 * size3D, sizeUV, textureCoordinates.data() );	// Copy texture coords.
+		
+		// Create texture, which will be attached to unit GL_TEXTURE1.
+		glGenTextures( 1, &textureID );
+		glBindTexture( GL_TEXTURE_2D, textureID );
+		
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );				// Set the texture wrapping/filtering options (on the currently bound texture object).
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+
+		int width, height, nrChannels;														// Load and generate the texture.
+		string fullTextureFilename = conf::OBJECTS_FOLDER + string( textureFilename );
+		stbi_set_flip_vertically_on_load( true );											// Flip the y-axis.
+		unsigned char *data = stbi_load( fullTextureFilename.c_str(), &width, &height, &nrChannels, 0 );
+		if( data )
+		{
+			glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, (nrChannels == 4)? GL_RGBA: GL_RGB, GL_UNSIGNED_BYTE, data );		// This works for PNG and JPEG textures.
+			glGenerateMipmap( GL_TEXTURE_2D );
+			withTexture = true;																// Object can now use texture for rendering.
+		}
+		else
+		{
+			cerr << "Failed to load texture for object " << kind << endl;
+			exit( EXIT_FAILURE );
+		}
+		stbi_image_free( data );
+		cout << "Finished loading " << kind << "'s texture!" << endl;
+	}
 }
 
 /**
@@ -172,12 +206,30 @@ GLuint Object3D::getBufferID() const
 }
 
 /**
+ * Retrieve the texture ID.
+ * @return OpengGL texture ID.
+ */
+GLuint Object3D::getTextureID() const
+{
+	return textureID;
+}
+
+/**
  * Retrieve the number of vertices for this 3D object model.
  * @return Number of vertices.
  */
 GLsizei Object3D::getVerticesCount() const
 {
 	return verticesCount;
+}
+
+/**
+ * Does the object have a texture?
+ * @return True if a texture exists for this object, false otherwise.
+ */
+bool Object3D::hasTexture() const
+{
+	return withTexture;
 }
 
 /**

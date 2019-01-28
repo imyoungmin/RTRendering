@@ -5,13 +5,16 @@ uniform vec3 lightColor;								// Only RGB.
 uniform vec4 ambient, diffuse, specular;				// The [r,g,b,a] ambient, diffuse, and specular material properties, respectively.
 uniform float shininess;
 uniform bool useBlinnPhong;
+uniform bool useTexture;
 uniform bool drawPoint;
 
 uniform sampler2D shadowMap;							// Shadow map texture.
+uniform sampler2D objectTexture;						// 3D object texture.
 
 in vec3 vPosition;										// Position in view (camera) coordinates.
 in vec3 vNormal;										// Normal vector in view coordinates.
 in vec4 fragPosLightSpace;								// Position of fragment in light space (need w component for manual perspective division).
+in vec2 oTexCoords;
 
 out vec4 color;
 
@@ -233,7 +236,7 @@ void main( void )
 
         // Diffuse component.
         float cDiff = max( incidence, 0.0 );
-        diffuseColor = cDiff * diffuse.rgb;
+		diffuseColor = cDiff * ( (useTexture)? texture( objectTexture, oTexCoords ).rgb * diffuse.rgb : diffuse.rgb );
 
         // Ambient component.
         ambientColor = ambient.rgb * lightColor;
