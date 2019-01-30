@@ -13,8 +13,9 @@ uniform sampler2D objectTexture;						// 3D object texture.
 
 in vec3 vPosition;										// Position in view (camera) coordinates.
 in vec3 vNormal;										// Normal vector in view coordinates.
-in vec4 fragPosLightSpace;								// Position of fragment in light space (need w component for manual perspective division).
 in vec2 oTexCoords;
+
+in vec4 fragPosLightSpace0;								// Position of fragment in light space (need w component for manual perspective division).
 
 out vec4 color;
 
@@ -140,12 +141,13 @@ float penumbraSize( float zReceiver, float zBlocker ) //Parallel plane estimatio
 
 /**
  * Get the average blocker depth values that are closer to the light than current depth.
+ * @param shadowMap Shadow map texture sampler to use for current search.
  * @param uv Fragment position in normalized coordinates [0, 1].
  * @param zReceiver Depth of current fragment in normalized coordinates [0, 1].
  * @param bias If given, evaluation bias to prevent 'depth' acne.
  * @return Average blocker depth or -1 if no blockers were found.
  */
-float findBlockerDepth( vec2 uv, float zReceiver, float bias )
+float findBlockerDepth( sampler2D shadowMap, vec2 uv, float zReceiver, float bias )
 {
 	// Uses similar triangles to compute what area of the shadow map we should search.
 	float searchWidth = LIGHT_SIZE_UV * ( zReceiver - NEAR_PLANE ) / 1.5;
@@ -153,7 +155,7 @@ float findBlockerDepth( vec2 uv, float zReceiver, float bias )
 	
 	for( int i = 0; i < BLOCKER_SEARCH_NUM_SAMPLES; i++ )
 	{
-		float shadowMapDepth = texture( shadowMap0, uv + poissonDisk[i] * searchWidth ).r;
+		float shadowMapDepth = texture( shadowMap, uv + poissonDisk[i] * searchWidth ).r;
 		if( zReceiver - shadowMapDepth > bias )				// A blocker? Closer to light.
 		{
 			blockerSum += shadowMapDepth;					// Accumulate blockers depth.
@@ -166,19 +168,20 @@ float findBlockerDepth( vec2 uv, float zReceiver, float bias )
 
 /**
  * Apply percentage closer filter to a set of samples around the current fragment (in the shadow map).
+ * @param shadowMap Shadow map sampler to use for current filtering operation.
  * @param uv Fragment position in normalized coordinates [0 ,1] with respect to light projected space.
  * @param zReceiver Fragment's depth value in light projected space.
  * @param filterRadiusUV Sampling radius around the fragment's position in shadow map.
  * @param bias Evaluation bias to prevent shadow acne.
  * @return Percentage of shadow to be assigned to fragment.
  */
-float applyPCFilter( vec2 uv, float zReceiver, float filterRadiusUV, float bias )
+float applyPCFilter( sampler2D shadowMap, vec2 uv, float zReceiver, float filterRadiusUV, float bias )
 {
 	float shadow = 0;
 	for( int i = 0; i < PCF_NUM_SAMPLES; i++ )
 	{
-		vec2 offset = poissonDisk2[i] * max( bias/1.25, filterRadiusUV );
-		float pcfDepth = texture( shadowMap0, uv + offset ).r;
+		vec2 offset = poissonDisk2[i] * max( bias/4, filterRadiusUV );
+		float pcfDepth = texture( shadowMap, uv + offset ).r;
 		shadow += ( zReceiver - pcfDepth > bias )? 1.0 : 0.0;
 	}
 	return shadow / PCF_NUM_SAMPLES;
@@ -186,11 +189,12 @@ float applyPCFilter( vec2 uv, float zReceiver, float filterRadiusUV, float bias 
 
 /**
  * Percentage closer soft shadow method.
+ * @param shadowMap Shadow map texture sampler to use for PCSS.
  * @param coords Fragment 3D position in projected light space.
  * @param incidence Dot product of light and normal vectors at fragment to be rendered.
  * @return Shadow percentage for fragment (1: Completely in shadow, 0: Completely lit).
  */
-float PCSS( vec4 coords, float incidence )
+float PCSS( sampler2D shadowMap, vec4 coords, float incidence )
 {
 	vec3 projFrag = coords.xyz / coords.w;			// Perspective division: fragment is in [-1, +1].
 	projFrag = projFrag * 0.5 + 0.5;				// Normalize fragment position to [0, 1].
@@ -204,7 +208,7 @@ float PCSS( vec4 coords, float incidence )
 	float bias = max( 0.005 * ( 1.0 - incidence ), 0.0004 );
 	
 	// Step 1: Blocker search.
-	float avgBlockerDepth = findBlockerDepth( uv, zReceiver, 0.0 );
+	float avgBlockerDepth = findBlockerDepth( shadowMap, uv, zReceiver, 0.0 );
 	if( avgBlockerDepth < 0 )						// There are no occluders so early out (this saves filtering).
 		return 0;
 	
@@ -213,7 +217,55 @@ float PCSS( vec4 coords, float incidence )
 	float filterRadiusUV = penumbraRatio * LIGHT_SIZE_UV * NEAR_PLANE / zReceiver;
 	
 	// Step 3: Filtering.
-	return applyPCFilter( uv, zReceiver, filterRadiusUV, bias );
+	return applyPCFilter( shadowMap, uv, zReceiver, filterRadiusUV, bias );
+}
+
+/**
+ * Apply color given a selected light and shadow map.
+ * @param shadowMap Shadow map sampler to read depth values from.
+ * @param fragPosLightSpace Fragment position in selected projected light space coordinates.
+ * @param lightColor RGB color of light source.
+ * @param lightPosition 3D coordinates of light source with respect to the camera.
+ * @param N Normalized normal vector to current fragment (if using Blinn-Phong shading) in camera coordinates.
+ * @param E Normalized view direction (if using Blinn-Phong shading) in camera coordinates.
+ * @return Fragment color (minus ambient component).
+ */
+vec3 shade( sampler2D shadowMap, vec4 fragPosLightSpace, vec3 lightColor, vec3 lightPosition, vec3 N, vec3 E )
+{
+	vec3 diffuseColor = diffuse.rgb,
+		 specularColor = specular.rgb;
+	float shadow;
+	
+	if( useBlinnPhong )
+	{
+		vec3 L = normalize( lightPosition - vPosition );
+		
+		vec3 H = normalize( L + E );
+		float incidence = dot( N, L );
+		
+		// Diffuse component.
+		float cDiff = max( incidence, 0.0 );
+		diffuseColor = cDiff * ( (useTexture)? texture( objectTexture, oTexCoords ).rgb * diffuseColor : diffuseColor );
+		
+		// Specular component.
+		if( incidence > 0 && shininess > 0.0 )		// Negative shininess turns off specular component.
+		{
+			float cSpec = pow( max( dot( N, H ), 0.0 ), shininess );
+			specularColor = cSpec * specularColor;
+		}
+		else
+			specularColor = vec3( 0.0, 0.0, 0.0 );
+		
+		shadow = PCSS( shadowMap, fragPosLightSpace, incidence );
+	}
+	else
+	{
+		specularColor = vec3( 0.0, 0.0, 0.0 );
+		shadow = PCSS( shadowMap, fragPosLightSpace, 1 );
+	}
+	
+	// Fragment color with respect to this light (excluding ambient component).
+	return ( 1.0 - shadow ) * ( diffuseColor + specularColor ) * lightColor;
 }
 
 /**
@@ -221,45 +273,18 @@ float PCSS( vec4 coords, float incidence )
  */
 void main( void )
 {
-    vec3 ambientColor = ambient.rgb, diffuseColor = diffuse.rgb, specularColor = specular.rgb;
+	vec3 ambientColor = ambient.rgb;		// Ambient component is constant across lights.
     float alpha = ambient.a;
-    float shadow;
-
-    if( useBlinnPhong )
-    {
-        vec3 N = normalize( vNormal );
-        vec3 E = normalize( -vPosition );
-        vec3 L = normalize( lightPosition0.xyz - vPosition );
-
-        vec3 H = normalize( L + E );
-        float incidence = dot( N, L );
-
-        // Diffuse component.
-        float cDiff = max( incidence, 0.0 );
-		diffuseColor = cDiff * ( (useTexture)? texture( objectTexture, oTexCoords ).rgb * diffuse.rgb : diffuse.rgb );
-
-        // Ambient component.
-        ambientColor = ambient.rgb;
-
-        // Specular component.
-        if( incidence > 0 && shininess > 0.0 )		// Negative shininess turns off specular component.
-        {
-        	float cSpec = pow( max( dot( N, H ), 0.0 ), shininess );
-        	specularColor = cSpec * specular.rgb;
-        }
-        else
-        	specularColor = vec3( 0.0, 0.0, 0.0 );
-
-        shadow = PCSS( fragPosLightSpace, incidence );
-    }
-    else
-    {
-        specularColor = vec3( 0.0, 0.0, 0.0 );
-        shadow = PCSS( fragPosLightSpace, 1 );
-    }
+	vec3 N, E;								// Unit-length normal and eye direction (only necessary for shading with Blinn-Phong reflectance model).
 	
-    // Final fragment color.
-    vec3 totalColor = ( ambientColor + ( 1.0 - shadow ) * ( diffuseColor + specularColor ) ) * lightColor0;
+	if( useBlinnPhong )
+	{
+		N = normalize( vNormal );
+		E = normalize( -vPosition );
+	}
+	
+    // Final fragment color is the sum of light contributions.
+    vec3 totalColor = ambientColor + shade( shadowMap0, fragPosLightSpace0, lightColor0, lightPosition0.xyz, N, E );	// Light 0.
     if( drawPoint )
     {
         if( dot( gl_PointCoord-0.5, gl_PointCoord - 0.5 ) > 0.25 )		// For rounded points.

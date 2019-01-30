@@ -14,8 +14,9 @@ uniform bool useBlinnPhong;
 
 out vec3 vPosition;										// Position in view (camera) coordinates.
 out vec3 vNormal;										// Normal vector in view coordinates.
-out vec4 fragPosLightSpace;								// Position of fragment in light space (need w component for manual perspective division).
 out vec2 oTexCoords;									// Interpolate texture coordinates into fragment shader.
+
+out vec4 fragPosLightSpace0;							// Position of fragment in light space (need w component for manual perspective division).
 
 void main( void )
 {
@@ -29,6 +30,6 @@ void main( void )
 	}
 
 	gl_PointSize = pointSize;
-	fragPosLightSpace = LightSpaceMatrix0 * Model * p;	// Send vertex position in light space projected coordinates.
+	fragPosLightSpace0 = LightSpaceMatrix0 * Model * p;	// Send vertex position in light space projected coordinates.
 	oTexCoords = texCoords;
 }

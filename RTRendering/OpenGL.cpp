@@ -490,9 +490,9 @@ void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const
 				glVertexAttribPointer( texCoords_location, TEX_ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset * 2 ) );
 				
 				// Enable texture rendering.
-				glActiveTexture( GL_TEXTURE0 + textureUnit );										// Recall for objects we assigned texture unit after all lights.
+				glActiveTexture( GL_TEXTURE0 + textureUnit );												// Recall for objects we assigned texture unit after all lights.
 				glBindTexture( GL_TEXTURE_2D, o.getTextureID() );
-				glUniform1i( glGetUniformLocation( renderingProgram, "objectTexture" ), 1 );		// And tell OpenGL so.
+				glUniform1i( glGetUniformLocation( renderingProgram, "objectTexture" ), textureUnit );		// And tell OpenGL so.
 			}
 			else
 				useTexture = false;
