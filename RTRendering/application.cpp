@@ -288,7 +288,7 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 	ogl.setColor( 0.8, 0.8, 0.8, 1.0, 16.0 );			// Ground with tiles (no specular component)
 	for( int i = -9; i <= 9; i++ )
 		for( int j = -9; j <= 9; j++ )
-			ogl.render3DObject( Projection, View, Model * Tx::translate( i, 0, j ) * Tx::scale( 0.495 ), "tile", true );
+			ogl.render3DObject( Projection, View, Model * Tx::translate( i, 0, j ) * Tx::scale( 0.495 ), "tile" );
 }
 
 /**
@@ -300,7 +300,7 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
 int main( int argc, const char * argv[] )
 {
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 0, 3, 13 };
+	gEye = { 0, 5, 13 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -380,8 +380,8 @@ int main( int argc, const char * argv[] )
 	glGenTextures( 1, &depthMap );													// Generate texture and properties.
 	glBindTexture( GL_TEXTURE_2D, depthMap );
 	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_SIDE_LENGTH, SHADOW_SIDE_LENGTH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );		// By doing this, anything farther than the shadow map will appear in light.
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
 	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
@@ -421,7 +421,7 @@ int main( int argc, const char * argv[] )
 	ogl.create3DObject( "dragon", "dragon.obj" );
 	ogl.create3DObject( "tile", "tile.obj", "Iron_Plate_DIF.png" );
 
-	lightPosition = { -5, 10, 5 };
+	lightPosition = { -11, 15, 11 };							// Light must be farther than eye to avoid artifacts when zooming in.
 	float lightY = lightPosition[1];							// Build light components from its initial value.
 	float lightXZRadius = sqrt( lightPosition[0]*lightPosition[0] + lightPosition[2]*lightPosition[2] );
 	float lAngle = atan2( lightPosition[0], lightPosition[2] );

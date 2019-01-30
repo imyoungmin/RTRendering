@@ -23,7 +23,7 @@ out vec4 color;
 #define BLOCKER_SEARCH_NUM_SAMPLES  31
 #define PCF_NUM_SAMPLES 			62
 #define NEAR_PLANE 					0.01
-#define LIGHT_WORLD_SIZE 			2.0
+#define LIGHT_WORLD_SIZE 			4.0
 #define LIGHT_FRUSTUM_WIDTH 		30.0
 #define LIGHT_SIZE_UV 				(LIGHT_WORLD_SIZE / LIGHT_FRUSTUM_WIDTH)	// Assuming that LIGHT_FRUSTUM_WIDTH = LIGHT_FRUSTUM_HEIGHT.
 
@@ -177,7 +177,7 @@ float applyPCFilter( vec2 uv, float zReceiver, float filterRadiusUV, float bias 
 	float shadow = 0;
 	for( int i = 0; i < PCF_NUM_SAMPLES; i++ )
 	{
-		vec2 offset = poissonDisk2[i] * filterRadiusUV;
+		vec2 offset = poissonDisk2[i] * max( bias/1.25, filterRadiusUV );
 		float pcfDepth = texture( shadowMap, uv + offset ).r;
 		shadow += ( zReceiver - pcfDepth > bias )? 1.0 : 0.0;
 	}
@@ -259,7 +259,7 @@ void main( void )
     }
 	
     // Final fragment color.
-    vec3 totalColor = ambientColor + ( 1.0 - shadow ) * ( diffuseColor + specularColor ) * lightColor;
+    vec3 totalColor = ( ambientColor + ( 1.0 - shadow ) * ( diffuseColor + specularColor ) ) * lightColor;
     if( drawPoint )
     {
         if( dot( gl_PointCoord-0.5, gl_PointCoord - 0.5 ) > 0.25 )		// For rounded points.
