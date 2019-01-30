@@ -275,7 +275,7 @@ void renderScene( const mat44& Projection, const mat44& View, const mat44& Model
 		ogl.render3DObject( Projection, View, Model * Tx::translate( r *sin( angle ), 0, r * cos( angle ) ), "column", true, gLightsCount );	// Use texture.
 	}
 	
-	ogl.setColor( 0.0, 1.0, 1.0 );						// Dragon.
+	ogl.setColor( 0.85, 0.85, 0.85 );					// Dragon.
 	ogl.render3DObject( Projection, View, Model * Tx::rotate( M_PI/2.0, Tx::Y_AXIS ), "dragon" );
 	
 	ogl.setColor( 0.8, 0.8, 0.8, 1.0, 16.0 );			// Ground with tiles.
@@ -292,8 +292,10 @@ void renderScene( const mat44& Projection, const mat44& View, const mat44& Model
  */
 int main( int argc, const char * argv[] )
 {
+	srand( static_cast<unsigned>( time( 0 ) ) );
+	
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 0, 5, 13 };
+	gEye = { 0, 6, 14 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -364,16 +366,25 @@ int main( int argc, const char * argv[] )
 	
 	//////////////////////////////////////////////// Create lights /////////////////////////////////////////////////////
 	
-	float lNearPlane = 0.01f, lFarPlane = 100.0f;									// Setting up the light projection matrix.
+	float lNearPlane = 0.01f, lFarPlane = 115.0f;									// Setting up the light projection matrix.
 	float lSide = 30.0f;
 	mat44 LightProjection = Tx::ortographic( -lSide, lSide, -lSide, lSide, lNearPlane, lFarPlane );
 	
-	gLights.push_back( Light( { -11, 15, 11 }, { 0.9, 0.9, 0.9 }, LightProjection, 0 ) );		// With unit suffix 0 in shader uniforms.
-	gLightsCount = static_cast<int>( gLights.size() );
+	gLightsCount = 3;
+	const float lRadius = sqrt( 11 * 11 * 2 );
+	const float theta = 2.0 * M_PI / gLightsCount;
+	const float phi = static_cast<float>( rand() ) / static_cast<float>( RAND_MAX / M_PI_4 );
+	const float lHeight = 15;
+	const float lRGB[3] = { 0.6, 0.5, 0.5 };
+	for( int i = 0; i < gLightsCount; i++ )
+		gLights.push_back( Light({ lRadius * sin( i * theta + phi ), lHeight, lRadius * cos( i * theta + phi ) },
+								 { lRGB[i % 3], lRGB[(i+1) % 3], lRGB[(i+2) % 3] },
+								 LightProjection,
+								 i) );
 	
 	/////////////////////////////////////////// Setting up shadow mapping //////////////////////////////////////////////
 	
-	const auto SHADOW_SIDE_LENGTH = static_cast<GLuint>( max(fbWidth, fbHeight) );	// Texture size.
+	const auto SHADOW_SIDE_LENGTH = static_cast<GLuint>( max(fbWidth, fbHeight)*2 );	// Texture size.
 	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
 	char shadowMapLocationStr[12];
 	
@@ -384,8 +395,8 @@ int main( int argc, const char * argv[] )
 		glGenTextures( 1, &(gLights[i].shadowMapTextureID) );						// Generate texture and properties.
 		glBindTexture( GL_TEXTURE_2D, gLights[i].shadowMapTextureID );
 		glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_SIDE_LENGTH, SHADOW_SIDE_LENGTH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
-		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );	// By doing this, anything farther than the shadow map will appear in light.
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
 		glTexParameterfv( GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor );
@@ -449,7 +460,7 @@ int main( int argc, const char * argv[] )
 		if( gRotatingLights )								// Check if rotating lights is enabled (with key 'L').
 		{
 			for( int i = 0; i < gLightsCount; i++ )
-				gLights[i].rotateBy( 0.001 * M_PI );
+				gLights[i].rotateBy( 0.01 * M_PI );
 		}
 		
 		//////////////////////////////////// First pass: render scene to depth maps ////////////////////////////////////
@@ -474,7 +485,7 @@ int main( int argc, const char * argv[] )
 		ogl.useProgram( renderingProgram );					// Set usual rendering program.
 		if( gRotatingCamera )
 		{
-			eyeAngle += 0.001 * M_PI;
+			eyeAngle += 0.01 * M_PI;
 			gEye = { eyeXZRadius * sin( eyeAngle ), eyeY, eyeXZRadius * cos( eyeAngle ) };
 		}
 		
