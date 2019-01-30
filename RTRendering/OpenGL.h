@@ -17,6 +17,7 @@
 #include "OpenGLGeometry.h"
 #include "Atlas.h"
 #include "Object3D.h"
+#include "Light.h"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -104,13 +105,13 @@ public:
 	void drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model );
 	void drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices );
 	void drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size = 10.0f );
-	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType, bool useTexture = false );
+	void render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType, bool useTexture = false, int textureUnit = 1 );
 	void renderText( const char* text, const Atlas* a, float x, float y, float sx, float sy, const float* color );
 	GLuint getGlyphsProgram();
 	void setUsingUniformScaling( bool u );
 	void create3DObject( const char* name, const char* filename, const char* textureFilename = nullptr );
 	void useProgram( GLuint program );
-	void setLighting( const vec3& lPosition, const mat44& LightSpaceMatrix, const mat44& View, const vec3& lColor = { 0.9, 0.9, 0.9 } );
+	void setLighting( const Light& light, const mat44& View, bool useUnitSuffix = false );
 };
 
 #endif /* OpenGL_h */

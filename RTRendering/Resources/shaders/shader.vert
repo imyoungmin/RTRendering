@@ -8,7 +8,7 @@ uniform mat4 Model;										// Model transform takes points from model into wor
 uniform mat4 View;										// View matrix takes points from world into camera coordinates.
 uniform mat3 InvTransModelView;							// Inverse-transposed 3x3 principal submatrix of ModelView matrix.
 uniform mat4 Projection;
-uniform mat4 LightSpaceMatrix;							// Takes world to light space coordinates (= Proj_light * View_light).
+uniform mat4 LightSpaceMatrix0;							// Takes world to light space coordinates (= Proj_light * View_light).
 uniform float pointSize;
 uniform bool useBlinnPhong;
 
@@ -29,6 +29,6 @@ void main( void )
 	}
 
 	gl_PointSize = pointSize;
-	fragPosLightSpace = LightSpaceMatrix * Model * p;	// Send vertex position in light space projected coordinates.
+	fragPosLightSpace = LightSpaceMatrix0 * Model * p;	// Send vertex position in light space projected coordinates.
 	oTexCoords = texCoords;
 }

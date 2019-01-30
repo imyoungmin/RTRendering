@@ -1,14 +1,14 @@
 #version 410 core
 
-uniform vec4 lightPosition;								// In camera coordinates.
-uniform vec3 lightColor;								// Only RGB.
+uniform vec4 lightPosition0;							// In camera coordinates.
+uniform vec3 lightColor0;								// Only RGB.
 uniform vec4 ambient, diffuse, specular;				// The [r,g,b,a] ambient, diffuse, and specular material properties, respectively.
 uniform float shininess;
 uniform bool useBlinnPhong;
 uniform bool useTexture;
 uniform bool drawPoint;
 
-uniform sampler2D shadowMap;							// Shadow map texture.
+uniform sampler2D shadowMap0;							// Shadow map textures for ith light.
 uniform sampler2D objectTexture;						// 3D object texture.
 
 in vec3 vPosition;										// Position in view (camera) coordinates.
@@ -153,7 +153,7 @@ float findBlockerDepth( vec2 uv, float zReceiver, float bias )
 	
 	for( int i = 0; i < BLOCKER_SEARCH_NUM_SAMPLES; i++ )
 	{
-		float shadowMapDepth = texture( shadowMap, uv + poissonDisk[i] * searchWidth ).r;
+		float shadowMapDepth = texture( shadowMap0, uv + poissonDisk[i] * searchWidth ).r;
 		if( zReceiver - shadowMapDepth > bias )				// A blocker? Closer to light.
 		{
 			blockerSum += shadowMapDepth;					// Accumulate blockers depth.
@@ -178,7 +178,7 @@ float applyPCFilter( vec2 uv, float zReceiver, float filterRadiusUV, float bias 
 	for( int i = 0; i < PCF_NUM_SAMPLES; i++ )
 	{
 		vec2 offset = poissonDisk2[i] * max( bias/1.25, filterRadiusUV );
-		float pcfDepth = texture( shadowMap, uv + offset ).r;
+		float pcfDepth = texture( shadowMap0, uv + offset ).r;
 		shadow += ( zReceiver - pcfDepth > bias )? 1.0 : 0.0;
 	}
 	return shadow / PCF_NUM_SAMPLES;
@@ -229,7 +229,7 @@ void main( void )
     {
         vec3 N = normalize( vNormal );
         vec3 E = normalize( -vPosition );
-        vec3 L = normalize( lightPosition.xyz - vPosition );
+        vec3 L = normalize( lightPosition0.xyz - vPosition );
 
         vec3 H = normalize( L + E );
         float incidence = dot( N, L );
@@ -239,7 +239,7 @@ void main( void )
 		diffuseColor = cDiff * ( (useTexture)? texture( objectTexture, oTexCoords ).rgb * diffuse.rgb : diffuse.rgb );
 
         // Ambient component.
-        ambientColor = ambient.rgb * lightColor;
+        ambientColor = ambient.rgb;
 
         // Specular component.
         if( incidence > 0 && shininess > 0.0 )		// Negative shininess turns off specular component.
@@ -259,7 +259,7 @@ void main( void )
     }
 	
     // Final fragment color.
-    vec3 totalColor = ( ambientColor + ( 1.0 - shadow ) * ( diffuseColor + specularColor ) ) * lightColor;
+    vec3 totalColor = ( ambientColor + ( 1.0 - shadow ) * ( diffuseColor + specularColor ) ) * lightColor0;
     if( drawPoint )
     {
         if( dot( gl_PointCoord-0.5, gl_PointCoord - 0.5 ) > 0.25 )		// For rounded points.

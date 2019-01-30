@@ -451,8 +451,9 @@ GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Came
  * @param Model The 4x4 model transformation matrix.
  * @param objectType Type of object to be rendered.
  * @param useTexture Whether or not use texture loaded for object.
+ * @param textureUnit Which texture unit activate for sampling in shader.
  */
-void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType, bool useTexture )
+void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType, bool useTexture, int textureUnit )
 {
 	try
 	{
@@ -489,7 +490,7 @@ void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const
 				glVertexAttribPointer( texCoords_location, TEX_ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset * 2 ) );
 				
 				// Enable texture rendering.
-				glActiveTexture( GL_TEXTURE1 );										// Recall for objects we assigned texture unit 1.
+				glActiveTexture( GL_TEXTURE0 + textureUnit );										// Recall for objects we assigned texture unit after all lights.
 				glBindTexture( GL_TEXTURE_2D, o.getTextureID() );
 				glUniform1i( glGetUniformLocation( renderingProgram, "objectTexture" ), 1 );		// And tell OpenGL so.
 			}
@@ -639,37 +640,47 @@ void OpenGL::useProgram( GLuint program )
 
 /**
  * Set and send the lighting properties to shaders attached to current rendering program.
- * @param lPosition 3D light position in world coordinates.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
+ * @param light Light object.
  * @param View The 4x4 view transformation matrix (usually the camera matrix).
- * @param lColor Light color.
+ * @param useUnitSuffix Wheter attach light index as suffix to shader uniform variables.
  */
-void OpenGL::setLighting( const vec3& lPosition, const mat44& LightSpaceMatrix, const mat44& View, const vec3& lColor )
+void OpenGL::setLighting( const Light& light, const mat44& View, bool useUnitSuffix )
 {
+	string lightSpaceMatrixStr = "LightSpaceMatrix";
+	string lightPositionStr = "lightPosition";
+	string lightColorStr = "lightColor";
+	
+	if( useUnitSuffix )		// Does the shader have light names with suffix corresponding to unit?
+	{
+		lightSpaceMatrixStr += to_string( light.getUnit() );
+		lightPositionStr += to_string( light.getUnit() );
+		lightColorStr += to_string( light.getUnit() );
+	}
+	
 	// Send light space matrix transform if shaders have corresponding receptor.
-	int lsm_location = glGetUniformLocation( renderingProgram, "LightSpaceMatrix" );
+	int lsm_location = glGetUniformLocation( renderingProgram, lightSpaceMatrixStr.c_str() );
 	if( lsm_location >= 0 )
 	{
 		float lsm_matrix[ELEMENTS_PER_MATRIX];
-		Tx::toOpenGLMatrix( lsm_matrix, LightSpaceMatrix );
+		Tx::toOpenGLMatrix( lsm_matrix, light.SpaceMatrix );
 		glUniformMatrix4fv( lsm_location, 1, GL_FALSE, lsm_matrix );
 	}
 	
 	// Light position.
-	int lightSource_location = glGetUniformLocation( renderingProgram, "lightPosition" );
+	int lightSource_location = glGetUniformLocation( renderingProgram, lightPositionStr.c_str() );
 	if( lightSource_location >= 0 )
 	{
 		float ls_vector[HOMOGENEOUS_VECTOR_SIZE];
-		Tx::toOpenGLMatrix( ls_vector, View * vec4{ lPosition[0], lPosition[1], lPosition[2], 1.0 } );		// We must send the light position in view coordinates.
+		Tx::toOpenGLMatrix( ls_vector, View * vec4{ light.position[0], light.position[1], light.position[2], 1.0 } );		// We must send the light position in view coordinates.
 		glUniform4fv( lightSource_location, 1, ls_vector );
 	}
 	
 	// Light color.
-	int lightColor_location = glGetUniformLocation( renderingProgram, "lightColor" );
+	int lightColor_location = glGetUniformLocation( renderingProgram, lightColorStr.c_str() );
 	if( lightColor_location >= 0 )
 	{
 		float lightColor_vector[VECTOR_SIZE_3D];
-		Tx::toOpenGLMatrix( lightColor_vector, lColor );
+		Tx::toOpenGLMatrix( lightColor_vector, light.color );
 		glUniform3fv( lightColor_location, 1, lightColor_vector );
 	}
 }
