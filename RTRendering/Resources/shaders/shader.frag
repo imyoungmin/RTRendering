@@ -32,7 +32,7 @@ out vec4 color;
 
 #define NUM_SAMPLES  				31
 #define NEAR_PLANE 					0.01
-#define LIGHT_WORLD_SIZE 			4.0
+#define LIGHT_WORLD_SIZE 			3.0
 #define LIGHT_FRUSTUM_WIDTH 		30.0
 #define LIGHT_SIZE_UV 				(LIGHT_WORLD_SIZE / LIGHT_FRUSTUM_WIDTH)	// Assuming that LIGHT_FRUSTUM_WIDTH = LIGHT_FRUSTUM_HEIGHT.
 
@@ -93,13 +93,13 @@ float penumbraSize( float zReceiver, float zBlocker ) //Parallel plane estimatio
 float findBlockerDepth( sampler2D shadowMap, vec2 uv, float zReceiver, float bias )
 {
 	// Uses similar triangles to compute what area of the shadow map we should search.
-	float searchWidth = LIGHT_SIZE_UV * ( zReceiver - NEAR_PLANE ) / 1.5;
+	float searchWidth = LIGHT_SIZE_UV * ( zReceiver - NEAR_PLANE );
 	float blockerSum = 0, numBlockers = 0;
 	
 	for( int i = 0; i < NUM_SAMPLES; i++ )
 	{
 		float shadowMapDepth = texture( shadowMap, uv + poissonDisk[i] * searchWidth ).r;
-		if( zReceiver - shadowMapDepth > bias )				// A blocker? Closer to light.
+		if( zReceiver - shadowMapDepth > 0 )				// A blocker? Closer to light.
 		{
 			blockerSum += shadowMapDepth;					// Accumulate blockers depth.
 			numBlockers++;
@@ -123,7 +123,7 @@ float applyPCFilter( sampler2D shadowMap, vec2 uv, float zReceiver, float filter
 	float shadow = 0;
 	for( int i = 0; i < NUM_SAMPLES; i++ )
 	{
-		vec2 offset = poissonDisk[i] * max( bias/1.5, filterRadiusUV );
+		vec2 offset = poissonDisk[i] * max( bias/1.05, filterRadiusUV );
 		float pcfDepth = texture( shadowMap, uv + offset ).r;
 		shadow += ( zReceiver - pcfDepth > bias )? 1.0 : 0.0;
 	}
@@ -137,7 +137,7 @@ float applyPCFilter( sampler2D shadowMap, vec2 uv, float zReceiver, float filter
  * @param incidence Dot product of light and normal vectors at fragment to be rendered.
  * @return Shadow percentage for fragment (1: Completely in shadow, 0: Completely lit).
  */
-float PCSS( sampler2D shadowMap, vec4 coords, float incidence )
+float pcss( sampler2D shadowMap, vec4 coords, float incidence )
 {
 	vec3 projFrag = coords.xyz / coords.w;			// Perspective division: fragment is in [-1, +1].
 	projFrag = projFrag * 0.5 + 0.5;				// Normalize fragment position to [0, 1].
@@ -148,7 +148,7 @@ float PCSS( sampler2D shadowMap, vec4 coords, float incidence )
 	if( zReceiver > 1.0 )							// Anything farther than the light frustrum should be lit.
 		return 0;
 	
-	float bias = max( 0.005 * ( 1.0 - incidence ), 0.0004 );
+	float bias = max( 0.0004 * ( 1.0 - incidence ), 0.0005 );
 	
 	// Step 1: Blocker search.
 	float avgBlockerDepth = findBlockerDepth( shadowMap, uv, zReceiver, 0.0 );
@@ -199,12 +199,12 @@ vec3 shade( sampler2D shadowMap, vec4 fragPosLightSpace, vec3 lightColor, vec3 l
 		else
 			specularColor = vec3( 0.0, 0.0, 0.0 );
 		
-		shadow = PCSS( shadowMap, fragPosLightSpace, incidence );
+		shadow = pcss( shadowMap, fragPosLightSpace, incidence );
 	}
 	else
 	{
 		specularColor = vec3( 0.0, 0.0, 0.0 );
-		shadow = PCSS( shadowMap, fragPosLightSpace, 1 );
+		shadow = pcss( shadowMap, fragPosLightSpace, 1 );
 	}
 	
 	// Fragment color with respect to this light (excluding ambient component).

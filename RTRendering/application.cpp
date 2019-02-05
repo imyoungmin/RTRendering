@@ -259,6 +259,35 @@ void resizeCallback( GLFWwindow* window, int w, int h )
 }
 
 /**
+ * Render the swinging lamp.
+ * @param Projection The 4x4 projection matrix.
+ * @param View The 4x4 view matrix.
+ * @param T The transformation matrix for the whole lamp object.
+ * @param currentTime Curent step.
+ */
+void renderSwingingLamp( const mat44& Projection, const mat44& View, const mat44& T, double currentTime )
+{
+	ogl.setColor( 0.7, 0.7, 0.0, 0.5 );
+	vec3 start = {-sqrt(18)+0.78, 0, 0}, end = {sqrt(18)-0.78, 0, 0}, middle = ( start + end ) / 2.0;
+	middle[1] -= 0.75;
+	vector<vec3> vertices( { start, middle, end } );
+	ogl.drawPath( Projection, View, T, vertices );
+	
+	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0 );
+	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.08 ) * Tx::scale( 0.08 ) );
+	
+	ogl.setColor( 0.4, 0.18, 0.15, 0.8 );
+	ogl.render3DObject( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.08 ) * Tx::scale( 0.5 ), "lamp" );
+	
+	vector<vec3> vertices2( { middle, middle - Tx::Y_AXIS } );
+	ogl.drawPath( Projection, View, T, vertices2 );
+	
+	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0 );
+	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.725 ) * Tx::scale( 0.08 ) );
+	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS ) * Tx::scale( 0.05 ) );
+}
+
+/**
  * Render the scene.
  * @param Projection The 4x4 projection matrix to use.
  * @param View The 4x4 view matrix.
@@ -276,12 +305,29 @@ void renderScene( const mat44& Projection, const mat44& View, const mat44& Model
 	}
 	
 	ogl.setColor( 0.85, 0.85, 0.85 );					// Dragon.
-	ogl.render3DObject( Projection, View, Model * Tx::rotate( M_PI/2.0, Tx::Y_AXIS ), "dragon" );
+	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.0, 0.2, 0.0 ) * Tx::rotate( M_PI/2.0, Tx::Y_AXIS ), "dragon" );
 	
 	ogl.setColor( 0.8, 0.8, 0.8, 1.0, 16.0 );			// Ground with tiles.
 	for( int i = -9; i <= 9; i++ )
+	{
 		for( int j = -9; j <= 9; j++ )
-			ogl.render3DObject( Projection, View, Model * Tx::translate( i, 0, j ) * Tx::scale( 0.495 ), "tile", true, gLightsCount );			// Use texture.
+		{
+			if( i >= -1 && i <= 1 && j >= -1 && j <= 1 )
+				continue;
+			ogl.render3DObject( Projection, View, Model * Tx::translate( i, 0, j ) * Tx::scale( 0.5 ), "tile", true, gLightsCount );			// Use texture.
+		}
+	}
+	
+	// Dragon circular base.
+	ogl.setColor( 0.35, 0.18, 0.15, 1.0, 32.0 );
+	ogl.drawCylinder( Projection, View, Model * Tx::rotate( -M_PI_2, Tx::X_AXIS ) * Tx::scale( 2.5, 2.5, 0.2 ) );
+	ogl.setColor( 0.23, 0.22, 0.25, 1.0, 32.0 );
+	ogl.drawCylinder( Projection, View, Model * Tx::rotate( -M_PI_2, Tx::X_AXIS ) * Tx::scale( 3.0, 3.0, 0.1 ) );
+	
+	// Render swinging lamps.
+	mat44 T = Tx::translate( 0.0, 4.48, sqrt(18) ) * Tx::rotate( M_PI_4 * sin( currentTime * 4.0 ), Tx::X_AXIS );
+	for( int i = 0; i < 4; i++ )
+		renderSwingingLamp( Projection, View, Model * Tx::rotate( M_PI_2 * i, Tx::Y_AXIS ) * T, currentTime );
 }
 
 /**
@@ -295,7 +341,7 @@ int main( int argc, const char * argv[] )
 	srand( static_cast<unsigned>( time( 0 ) ) );
 	
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 0, 6, 14 };
+	gEye = { 3, 7, 17 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
@@ -366,7 +412,7 @@ int main( int argc, const char * argv[] )
 	
 	//////////////////////////////////////////////// Create lights /////////////////////////////////////////////////////
 	
-	float lNearPlane = 0.01f, lFarPlane = 115.0f;									// Setting up the light projection matrix.
+	float lNearPlane = 0.01f, lFarPlane = 200.0f;									// Setting up the light projection matrix.
 	float lSide = 30.0f;
 	mat44 LightProjection = Tx::ortographic( -lSide, lSide, -lSide, lSide, lNearPlane, lFarPlane );
 	
@@ -432,6 +478,7 @@ int main( int argc, const char * argv[] )
 	ogl.create3DObject( "column", "column.obj", "Minoan_column_b.png" );	// Create 3D object models.
 	ogl.create3DObject( "dragon", "dragon.obj" );
 	ogl.create3DObject( "tile", "tile.obj", "Iron_Plate_DIF.png" );
+	ogl.create3DObject( "lamp", "lamp.obj", "cl_wires.jpg" );
 	
 	float eyeY = gEye[1];										// Build eye components from its intial value.
 	float eyeXZRadius = sqrt( gEye[0]*gEye[0] + gEye[2]*gEye[2] );
