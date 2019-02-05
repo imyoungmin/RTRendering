@@ -273,7 +273,7 @@ void renderSwingingLamp( const mat44& Projection, const mat44& View, const mat44
 	vector<vec3> vertices( { start, middle, end } );
 	ogl.drawPath( Projection, View, T, vertices );
 	
-	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0 );
+	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0f );
 	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.08 ) * Tx::scale( 0.08 ) );
 	
 	ogl.setColor( 0.4, 0.18, 0.15, 0.8 );
@@ -282,7 +282,7 @@ void renderSwingingLamp( const mat44& Projection, const mat44& View, const mat44
 	vector<vec3> vertices2( { middle, middle - Tx::Y_AXIS } );
 	ogl.drawPath( Projection, View, T, vertices2 );
 	
-	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0 );
+	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0f );
 	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.725 ) * Tx::scale( 0.08 ) );
 	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS ) * Tx::scale( 0.05 ) );
 }
@@ -300,8 +300,8 @@ void renderScene( const mat44& Projection, const mat44& View, const mat44& Model
 	float r = 6.0f;
 	for( int i = 0; i < 4; i++ )
 	{
-		float angle = M_PI/4.0 + i * M_PI/2.0;
-		ogl.render3DObject( Projection, View, Model * Tx::translate( r *sin( angle ), 0, r * cos( angle ) ), "column", true, gLightsCount );	// Use texture.
+		double angle = M_PI/4.0 + i * M_PI/2.0;
+		ogl.render3DObject( Projection, View, Model * Tx::translate( r * sin( angle ), 0, r * cos( angle ) ), "column", true, gLightsCount );	// Use texture.
 	}
 	
 	ogl.setColor( 0.85, 0.85, 0.85 );					// Dragon.
@@ -417,8 +417,8 @@ int main( int argc, const char * argv[] )
 	mat44 LightProjection = Tx::ortographic( -lSide, lSide, -lSide, lSide, lNearPlane, lFarPlane );
 	
 	gLightsCount = 3;
-	const float lRadius = sqrt( 11 * 11 * 2 );
-	const float theta = 2.0 * M_PI / gLightsCount;
+	const double lRadius = sqrt( 11 * 11 * 2 );
+	const double theta = 2.0 * M_PI / gLightsCount;
 	const float phi = static_cast<float>( rand() ) / static_cast<float>( RAND_MAX / M_PI_4 );
 	const float lHeight = 15;
 	const float lRGB[3] = { 0.6, 0.5, 0.5 };
@@ -507,7 +507,7 @@ int main( int argc, const char * argv[] )
 		if( gRotatingLights )								// Check if rotating lights is enabled (with key 'L').
 		{
 			for( int i = 0; i < gLightsCount; i++ )
-				gLights[i].rotateBy( 0.01 * M_PI );
+				gLights[i].rotateBy( static_cast<float>( 0.01 * M_PI ) );
 		}
 		
 		//////////////////////////////////// First pass: render scene to depth maps ////////////////////////////////////

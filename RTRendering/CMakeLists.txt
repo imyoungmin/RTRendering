@@ -13,7 +13,7 @@ add_executable(RTRendering application.cpp
         Object3D.h Object3D.cpp
         Transformations.h Transformations.cpp
 		Light.h Light.cpp
-		stb_image.h)
+		stb_image.h stb_image.cpp)
 
 target_link_libraries(RTRendering
         "-framework OpenGL"
