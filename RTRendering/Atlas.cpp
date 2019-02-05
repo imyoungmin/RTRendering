@@ -48,10 +48,8 @@ Atlas::Atlas( FT_Face face, GLuint height, GLint uniform_tex, GLint attribute_co
 	h += rowh;
 
 	// Create a texture that will be used to hold all glyphs.
-	glActiveTexture( GL_TEXTURE0 );
 	glGenTextures( 1, &tex );
 	glBindTexture( GL_TEXTURE_2D, tex );
-	glUniform1i( uniform_tex_loc, 0 );
 
 	glTexImage2D( GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr );
 

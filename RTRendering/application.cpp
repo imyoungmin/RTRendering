@@ -29,6 +29,8 @@ vec3 gUp;
 
 bool gLocked;							// Track if mouse button is pressed down.
 bool gUsingArrowKey;					// Track if we are using the arrow keys for rotating scene.
+bool gRotatingLights;					// Enable/disable rotating lights about the scene.
+bool gRotatingCamera;					// Enable/disable rotating camera.
 float gZoom;							// Camera zoom.
 const float ZOOM_IN = 1.015;
 const float ZOOM_OUT = 0.985;
@@ -40,6 +42,10 @@ int fbHeight;
 float gRetinaRatio;						// How many screen dots exist per OpenGL pixel.
 
 OpenGL ogl;								// Initialize application OpenGL.
+
+// Lights.
+vector<Light> gLights;					// Light source objects.
+int gLightsCount = 0;
 
 // Frame rate variables and functions.
 static const int NUM_FPS_SAMPLES = 64;
@@ -54,7 +60,7 @@ unsigned char gCurrentSample = 0;		// Should start storing from gCurrentSample >
 float calculateFPS( float dt )
 {
 	gCurrentSample++;
-	gCurrentSample = max( 1, static_cast<int>( gCurrentSample ) );
+	gCurrentSample = static_cast<unsigned char>( max( 1, static_cast<int>( gCurrentSample ) ) );
 	if( dt <= 0 )
 		cout << "error" << endl;
 	gFpsSamples[(gCurrentSample - 1) % NUM_FPS_SAMPLES] = 1.0f / dt;
@@ -146,6 +152,14 @@ void keyCallback( GLFWwindow* window, int key, int scancode, int action, int mod
 		case GLFW_KEY_R:
 			resetArcBall();
 			gZoom = 1.0;
+			break;
+		case GLFW_KEY_L:
+			if( !gRotatingCamera )				// Avoid rotating camera and lights at the same time.
+				gRotatingLights = !gRotatingLights;
+			break;
+		case GLFW_KEY_C:
+			if( !gRotatingLights )
+				gRotatingCamera = !gRotatingCamera;
 			break;
 		default: return;
 	}
@@ -245,43 +259,75 @@ void resizeCallback( GLFWwindow* window, int w, int h )
 }
 
 /**
+ * Render the swinging lamp.
+ * @param Projection The 4x4 projection matrix.
+ * @param View The 4x4 view matrix.
+ * @param T The transformation matrix for the whole lamp object.
+ * @param currentTime Curent step.
+ */
+void renderSwingingLamp( const mat44& Projection, const mat44& View, const mat44& T, double currentTime )
+{
+	ogl.setColor( 0.7, 0.7, 0.0, 0.5 );
+	vec3 start = {-sqrt(18)+0.78, 0, 0}, end = {sqrt(18)-0.78, 0, 0}, middle = ( start + end ) / 2.0;
+	middle[1] -= 0.75;
+	vector<vec3> vertices( { start, middle, end } );
+	ogl.drawPath( Projection, View, T, vertices );
+	
+	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0 );
+	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.08 ) * Tx::scale( 0.08 ) );
+	
+	ogl.setColor( 0.4, 0.18, 0.15, 0.8 );
+	ogl.render3DObject( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.08 ) * Tx::scale( 0.5 ), "lamp" );
+	
+	vector<vec3> vertices2( { middle, middle - Tx::Y_AXIS } );
+	ogl.drawPath( Projection, View, T, vertices2 );
+	
+	ogl.setColor( 0.7, 0.7, 0.0, 1.0, -1.0 );
+	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS * 0.725 ) * Tx::scale( 0.08 ) );
+	ogl.drawSphere( Projection, View, T * Tx::translate( middle - Tx::Y_AXIS ) * Tx::scale( 0.05 ) );
+}
+
+/**
  * Render the scene.
- * @param program OpenGL program ID that contains the shaders to use for rendering the scene.
  * @param Projection The 4x4 projection matrix to use.
  * @param View The 4x4 view matrix.
  * @param Model Any previously built 4x4 model matrix (usually containing current zoom and scene rotation as provided by arcball).
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param currentTime Current step.
  */
-void renderScene( GLuint program, const mat44& Projection, const mat44& View, const mat44& Model, const mat44& LightSpaceMatrix, double currentTime )
+void renderScene( const mat44& Projection, const mat44& View, const mat44& Model, double currentTime )
 {
-	ogl.useProgram( program );							// Render using the shaders defined for input program.
-	glEnable( GL_CULL_FACE );
+	ogl.setColor( 0.9, 0.9, 0.9, 1.0, 32.0 );			// Columns.
+	float r = 6.0f;
+	for( int i = 0; i < 4; i++ )
+	{
+		float angle = M_PI/4.0 + i * M_PI/2.0;
+		ogl.render3DObject( Projection, View, Model * Tx::translate( r *sin( angle ), 0, r * cos( angle ) ), "column", true, gLightsCount );	// Use texture.
+	}
 	
-	ogl.setColor( 1.0, 1.0, 1.0 );						// A 3D object.
-	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.25, 0.24, 0 ) * Tx::rotate( -0.01, Tx::Z_AXIS ) * Tx::scale( 0.75 ), LightSpaceMatrix, "bunny" );
+	ogl.setColor( 0.85, 0.85, 0.85 );					// Dragon.
+	ogl.render3DObject( Projection, View, Model * Tx::translate( 0.0, 0.2, 0.0 ) * Tx::rotate( M_PI/2.0, Tx::Y_AXIS ), "dragon" );
 	
-	ogl.setColor( 0.0, 1.0, 0.0 );						// A green sphere.
-	ogl.drawSphere( Projection, View, Model * Tx::translate( 4, 0.5, 0 ) * Tx::scale( 0.5 ), LightSpaceMatrix );
+	ogl.setColor( 0.8, 0.8, 0.8, 1.0, 16.0 );			// Ground with tiles.
+	for( int i = -9; i <= 9; i++ )
+	{
+		for( int j = -9; j <= 9; j++ )
+		{
+			if( i >= -1 && i <= 1 && j >= -1 && j <= 1 )
+				continue;
+			ogl.render3DObject( Projection, View, Model * Tx::translate( i, 0, j ) * Tx::scale( 0.5 ), "tile", true, gLightsCount );			// Use texture.
+		}
+	}
 	
-	ogl.setColor( 0.0, 0.0, 1.0 );						// A blue cylinder.
-	ogl.drawCylinder( Projection, View, Model * Tx::translate( -4, 0.5, -0.5 ) * Tx::scale( 0.5, 0.5, 1.0 ), LightSpaceMatrix );
+	// Dragon circular base.
+	ogl.setColor( 0.35, 0.18, 0.15, 1.0, 32.0 );
+	ogl.drawCylinder( Projection, View, Model * Tx::rotate( -M_PI_2, Tx::X_AXIS ) * Tx::scale( 2.5, 2.5, 0.2 ) );
+	ogl.setColor( 0.23, 0.22, 0.25, 1.0, 32.0 );
+	ogl.drawCylinder( Projection, View, Model * Tx::rotate( -M_PI_2, Tx::X_AXIS ) * Tx::scale( 3.0, 3.0, 0.1 ) );
 	
-	ogl.setColor( 0.9, 0.9, 1.0 );						// Ground.
-	ogl.drawCube( Projection, View, Model * Tx::translate( 0, -0.005, 0 ) * Tx::scale( 20, 0.01, 20 ), LightSpaceMatrix );
-	
-	double theta = 2.0 * M_PI/6.0;
-	double r = 3;
-	vector<vec3> points;								// A yellow hexagon.
-	for( int i = 0; i <= 6; i++ )
-		points.emplace_back( vec3( { r * cos( i * theta + currentTime * 0.2 ) * 0.75, r * sin( i * theta + currentTime * 0.2 ) * 0.75, 0 } ) );
-	ogl.setColor( 1.0, 1.0, 0.0 );
-	ogl.drawPath( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), LightSpaceMatrix, points );
-	
-	ogl.setColor( 0.0, 1.0, 1.0, 0.5 );					// A semi-transparent cyan set of points.
-	vector<vec3>::const_iterator first = points.begin();
-	vector<vec3>::const_iterator last = points.end() - 1;
-	ogl.drawPoints( Projection, View, Model * Tx::translate( 0, 2, -1 ) * Tx::rotate( M_PI/4.0, Tx::X_AXIS ), LightSpaceMatrix, vector<vec3>( first, last ), 20 );
+	// Render swinging lamps.
+	mat44 T = Tx::translate( 0.0, 4.48, sqrt(18) ) * Tx::rotate( M_PI_4 * sin( currentTime * 4.0 ), Tx::X_AXIS );
+	for( int i = 0; i < 4; i++ )
+		renderSwingingLamp( Projection, View, Model * Tx::rotate( M_PI_2 * i, Tx::Y_AXIS ) * T, currentTime );
 }
 
 /**
@@ -292,11 +338,15 @@ void renderScene( GLuint program, const mat44& Projection, const mat44& View, co
  */
 int main( int argc, const char * argv[] )
 {
+	srand( static_cast<unsigned>( time( 0 ) ) );
+	
 	gPointOfInterest = { 0, 0, 0 };		// Camera controls globals.
-	gEye = { 3, 4, 9 };
+	gEye = { 3, 7, 17 };
 	gUp = Tx::Y_AXIS;
 	
 	gLocked = false;					// Track if mouse button is pressed down.
+	gRotatingLights = false;			// Start with still lights.
+	gRotatingCamera = false;
 	gUsingArrowKey = false;				// Track pressing action of arrow keys.
 	gZoom = 1.0;						// Camera zoom.
 	
@@ -316,8 +366,8 @@ int main( int argc, const char * argv[] )
 	cout << glfwGetVersionString() << endl;
 
 	// Create window object (with screen-dependent size metrics).
-	int windowWidth = 1280;
-	int windowHeight = 920;
+	int windowWidth = 1024;
+	int windowHeight = 1024;
 	window = glfwCreateWindow( windowWidth, windowHeight, "Real-Time Rendering", nullptr, nullptr );
 
 	if( !window )
@@ -347,8 +397,7 @@ int main( int argc, const char * argv[] )
 	
 	///////////////////////////////////// Intialize OpenGL and rendering shaders ///////////////////////////////////////
 	
-	const vec3 lightPosition = { -2, 12, 12 };
-	ogl.init( lightPosition );
+	ogl.init();
 	
 	// Initialize shaders for geom/sequence drawing program.
 	cout << "Initializing rendering shaders... ";
@@ -361,36 +410,52 @@ int main( int argc, const char * argv[] )
 	GLuint shadowMapProgram = shaders.compile( conf::SHADERS_FOLDER + "shadow.vert", conf::SHADERS_FOLDER + "shadow.frag" );
 	cout << "Done!" << endl;
 	
+	//////////////////////////////////////////////// Create lights /////////////////////////////////////////////////////
+	
+	float lNearPlane = 0.01f, lFarPlane = 200.0f;									// Setting up the light projection matrix.
+	float lSide = 30.0f;
+	mat44 LightProjection = Tx::ortographic( -lSide, lSide, -lSide, lSide, lNearPlane, lFarPlane );
+	
+	gLightsCount = 3;
+	const float lRadius = sqrt( 11 * 11 * 2 );
+	const float theta = 2.0 * M_PI / gLightsCount;
+	const float phi = static_cast<float>( rand() ) / static_cast<float>( RAND_MAX / M_PI_4 );
+	const float lHeight = 15;
+	const float lRGB[3] = { 0.6, 0.5, 0.5 };
+	for( int i = 0; i < gLightsCount; i++ )
+		gLights.push_back( Light({ lRadius * sin( i * theta + phi ), lHeight, lRadius * cos( i * theta + phi ) },
+								 { lRGB[i % 3], lRGB[(i+1) % 3], lRGB[(i+2) % 3] },
+								 LightProjection,
+								 i) );
+	
 	/////////////////////////////////////////// Setting up shadow mapping //////////////////////////////////////////////
 	
-	GLuint depthMapFBO;											// Create a framebuffer for rendering the shadow map.
-	glGenFramebuffers( 1, &depthMapFBO );
-	
-	const GLuint SHADOW_WIDTH = 2.5 * fbWidth, SHADOW_HEIGHT = 2.5 * fbHeight;		// Texture size.
-	
-	GLuint depthMap;
-	glGenTextures( 1, &depthMap );													// Generate texture and properties.
-	glBindTexture( GL_TEXTURE_2D, depthMap );
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );		// By doing this, anything farther than the shadow map will appear in light.
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
+	const auto SHADOW_SIDE_LENGTH = static_cast<GLuint>( max(fbWidth, fbHeight)*2 );	// Texture size.
 	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };								// Depth = 1.0.  So the rendering of the normal scene will produce something larger than this.
-	glTexParameterfv( GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor );
+	char shadowMapLocationStr[12];
 	
-	glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );			// Attach texture as the framebuffer in the depth buffer.
-	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0 );
-	glDrawBuffer( GL_NONE );									// We won't render any color.
-	glReadBuffer( GL_NONE );
-	glBindFramebuffer( GL_FRAMEBUFFER, 0 );						// Unbind.
-	
-	float nearPlane = 0.01f, farPlane = 1000.0f;				// Setting up the light projection matrix.
-	//mat44 LightProjection = Tx::ortographic( -10, 10, -10, 10, nearPlane, farPlane );
-	mat44 LightProjection = Tx::perspective( M_PI/2.0, static_cast<float>( SHADOW_WIDTH )/static_cast<float>( SHADOW_HEIGHT ), nearPlane, farPlane );
-	
-	int shadowMap_location = glGetUniformLocation( renderingProgram, "shadowMap" );
-	glUniform1i( shadowMap_location, 0 );						// Texture will be associated to unit GL_TEXTURE0.
+	for( int i = 0; i < gLightsCount; i++ )											// Create framebuffers for rendering the shadow maps with respect to each light.
+	{
+		glGenFramebuffers( 1, &(gLights[i].shadowMapFBO) );							// All information is kept in the Light object.
+		
+		glGenTextures( 1, &(gLights[i].shadowMapTextureID) );						// Generate texture and properties.
+		glBindTexture( GL_TEXTURE_2D, gLights[i].shadowMapTextureID );
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_SIDE_LENGTH, SHADOW_SIDE_LENGTH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );	// By doing this, anything farther than the shadow map will appear in light.
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
+		glTexParameterfv( GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor );
+		
+		glBindFramebuffer( GL_FRAMEBUFFER, gLights[i].shadowMapFBO );				// Attach texture as the framebuffer in the depth buffer.
+		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gLights[i].shadowMapTextureID, 0 );
+		glDrawBuffer( GL_NONE );													// We won't render any color.
+		glReadBuffer( GL_NONE );
+		glBindFramebuffer( GL_FRAMEBUFFER, 0 );										// Unbind.
+		
+		sprintf( shadowMapLocationStr, "shadowMap%d", gLights[i].getUnit() );
+		gLights[i].shadowMapLocation = glGetUniformLocation( renderingProgram, shadowMapLocationStr );
+	}
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -410,13 +475,21 @@ int main( int argc, const char * argv[] )
 	string FPS = "FPS: ";
 
 	ogl.setUsingUniformScaling( true );							// Important! We'll be using uniform scaling in the following scene rendering.
-	ogl.create3DObject( "bunny", "bunny.obj" );					// Create a 3D object model.
-
+	ogl.create3DObject( "column", "column.obj", "Minoan_column_b.png" );	// Create 3D object models.
+	ogl.create3DObject( "dragon", "dragon.obj" );
+	ogl.create3DObject( "tile", "tile.obj", "Iron_Plate_DIF.png" );
+	ogl.create3DObject( "lamp", "lamp.obj", "cl_wires.jpg" );
+	
+	float eyeY = gEye[1];										// Build eye components from its intial value.
+	float eyeXZRadius = sqrt( gEye[0]*gEye[0] + gEye[2]*gEye[2] );
+	float eyeAngle = atan2( gEye[0], gEye[2] );
+	
 	// Rendering loop.
 	while( !glfwWindowShouldClose( window ) )
 	{
-		glClearColor( 0.1f, 0.1f, 0.11f, 1.0f );
+		glClearColor( 0.0f, 0.0f, 0.01f, 1.0f );
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+		glEnable( GL_CULL_FACE );
 		
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
@@ -429,29 +502,56 @@ int main( int argc, const char * argv[] )
 			{ abr[3][0], abr[3][1], abr[3][2], abr[3][3] } };
 		mat44 Model = ArcBall.t() * Tx::scale( gZoom );
 		
-		//////////////////////////////////// First pass: render scene to depth map /////////////////////////////////////
+		///////////////////////////////////////// Define new lights' positions /////////////////////////////////////////
 		
-		mat44 LightView = Tx::lookAt( lightPosition, gPointOfInterest, Tx::Y_AXIS );
-		mat44 LightSpaceMatrix = LightProjection * LightView;
+		if( gRotatingLights )								// Check if rotating lights is enabled (with key 'L').
+		{
+			for( int i = 0; i < gLightsCount; i++ )
+				gLights[i].rotateBy( 0.01 * M_PI );
+		}
 		
-		glViewport( 0, 0, SHADOW_WIDTH, SHADOW_HEIGHT );
-		glBindFramebuffer( GL_FRAMEBUFFER, depthMapFBO );
-		glClear( GL_DEPTH_BUFFER_BIT );
+		//////////////////////////////////// First pass: render scene to depth maps ////////////////////////////////////
 		
-		renderScene( shadowMapProgram, LightProjection, LightView, Model, LightSpaceMatrix, currentTime );
-		glBindFramebuffer( GL_FRAMEBUFFER, 0 );				// Unbind: return control to normal draw framebuffer.
+		ogl.useProgram( shadowMapProgram );					// Set shadow map writing program.
+		for( int i = 0; i < gLightsCount; i++ )
+		{
+			mat44 LightView = Tx::lookAt( gLights[i].position, gPointOfInterest, Tx::Y_AXIS );
+			gLights[i].SpaceMatrix = gLights[i].Projection * LightView;
+			
+			glViewport( 0, 0, SHADOW_SIDE_LENGTH, SHADOW_SIDE_LENGTH );
+			glBindFramebuffer( GL_FRAMEBUFFER, gLights[i].shadowMapFBO );
+			glClear( GL_DEPTH_BUFFER_BIT );
+			
+			ogl.setLighting( gLights[i], LightView );
+			renderScene( LightProjection, LightView, Model, currentTime );
+			glBindFramebuffer( GL_FRAMEBUFFER, 0 );			// Unbind: return control to normal draw framebuffer.
+		}
 
 		//////////////////////////////// Second pass: render scene with shadow mapping /////////////////////////////////
 
+		ogl.useProgram( renderingProgram );					// Set usual rendering program.
+		if( gRotatingCamera )
+		{
+			eyeAngle += 0.01 * M_PI;
+			gEye = { eyeXZRadius * sin( eyeAngle ), eyeY, eyeXZRadius * cos( eyeAngle ) };
+		}
+		
 		mat44 Camera = Tx::lookAt( gEye, gPointOfInterest, gUp );
 		
 		glViewport( 0, 0, fbWidth, fbHeight );
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 		
-		// Enable shadow mapping texture sampler.
-		glActiveTexture( GL_TEXTURE0 );
-		glBindTexture( GL_TEXTURE_2D, depthMap );
-		renderScene( renderingProgram, Proj, Camera, Model, LightSpaceMatrix, currentTime );
+		// Enable shadow mapping texture samplers.
+		for( int i = 0; i < gLightsCount; i++ )
+		{
+			glActiveTexture( GL_TEXTURE0 + gLights[i].getUnit() );
+			glBindTexture( GL_TEXTURE_2D, gLights[i].shadowMapTextureID );
+			glUniform1i( gLights[i].shadowMapLocation, gLights[i].getUnit() );	// The light shadow map is associated to unit GL_TEXTURE0 + light unit.
+			
+			// Set and send the lighting properties.
+			ogl.setLighting( gLights[i], Camera, true );
+		}
+		renderScene( Proj, Camera, Model, currentTime );
 
 		/////////////////////////////////////////////// Rendering text /////////////////////////////////////////////////
 
@@ -466,7 +566,8 @@ int main( int argc, const char * argv[] )
 		sprintf( text, "FPS: %.2f", ( ( transcurredTimePerFrame <= 0 )? -1 : calculateFPS( transcurredTimePerFrame ) ) );
 		gOldTicks = gNewTicks;
 
-		ogl.renderText( text, ogl.atlas48, -1 + 10 * gTextScaleX, 1 - 30 * gTextScaleY, gTextScaleX * 0.6, gTextScaleY * 0.6, textColor );
+		ogl.renderText( text, ogl.atlas48, -1 + 10 * gTextScaleX, 1 - 30 * gTextScaleY, static_cast<float>( gTextScaleX * 0.6 ),
+						static_cast<float>( gTextScaleY * 0.6 ), textColor );
 
 		glDisable( GL_BLEND );
 

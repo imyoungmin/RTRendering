@@ -17,7 +17,7 @@ OpenGL::~OpenGL()
 /**
  * Initialize the OpenGL object.
  */
-void OpenGL::init( const vec3& lPosition, const vec3& lColor )
+void OpenGL::init()
 {
 	// Create vertex array object.
 	glGenVertexArrays( 1, &vao );
@@ -25,10 +25,6 @@ void OpenGL::init( const vec3& lPosition, const vec3& lColor )
 	
 	// Initialize glyphs via FreeType.
 	initGlyphs();
-	
-	// Set up light properties.
-	lightPosition = { lPosition[0], lPosition[1], lPosition[2], 1.0 };
-	lightColor = { lColor[0], lColor[1], lColor[2], 1.0 };
 }
 
 /**
@@ -91,8 +87,9 @@ void OpenGL::initGlyphs()
  * @param g Green component in [0,1].
  * @param b Blue component in [0,1].
  * @param a Alpha value in [0,1].
+ * @param shininess Power value for specular component: negative to turn specular off; value in [-inf, 128].
  */
-void OpenGL::setColor( float r, float g, float b, float a )
+void OpenGL::setColor( float r, float g, float b, float a, float shininess )
 {
 	// Clamp components to valid values.
 	r = fmax( 0.0f, fmin( r, 1.0f ) );
@@ -101,8 +98,9 @@ void OpenGL::setColor( float r, float g, float b, float a )
 	a = fmax( 0.0f, fmin( a, 1.0f ) );
 
 	material.diffuse = { r, g, b, a };
-	material.ambient = material.diffuse * 0.15;
+	material.ambient = material.diffuse * 0.1;
 	material.specular[3] = material.ambient[3] = a;
+	material.shininess = fmin( shininess, 128.0f );
 }
 
 /**
@@ -112,11 +110,10 @@ void OpenGL::setColor( float r, float g, float b, float a )
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
+void OpenGL::drawCube( const mat44& Projection, const mat44& Camera, const mat44& Model )
 {
-	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &cube, CUBE );
+	drawGeom( Projection, Camera, Model, &cube, CUBE );
 }
 
 /**
@@ -126,11 +123,10 @@ void OpenGL::drawCube( const mat44& Projection, const mat44& Camera, const mat44
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
+void OpenGL::drawSphere( const mat44& Projection, const mat44& Camera, const mat44& Model )
 {
-	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &sphere, SPHERE );
+	drawGeom( Projection, Camera, Model, &sphere, SPHERE );
 }
 
 /**
@@ -140,11 +136,10 @@ void OpenGL::drawSphere( const mat44& Projection, const mat44& Camera, const mat
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
+void OpenGL::drawCylinder( const mat44& Projection, const mat44& Camera, const mat44& Model )
 {
-	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &cylinder, CYLINDER );
+	drawGeom( Projection, Camera, Model, &cylinder, CYLINDER );
 }
 
 /**
@@ -156,11 +151,10 @@ void OpenGL::drawCylinder( const mat44& Projection, const mat44& Camera, const m
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera transformation matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  */
-void OpenGL::drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix )
+void OpenGL::drawPrism( const mat44& Projection, const mat44& Camera, const mat44& Model )
 {
-	drawGeom( Projection, Camera, Model, LightSpaceMatrix, &prism, PRISM );
+	drawGeom( Projection, Camera, Model, &prism, PRISM );
 }
 
 /**
@@ -170,10 +164,9 @@ void OpenGL::drawPrism( const mat44& Projection, const mat44& Camera, const mat4
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param vertices A vector of vec3 elements containing position information.
  */
-void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices )
+void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices )
 {
 	if( material.ambient[3] < 1.0 )		// If alpha channel in current material color is not fully opaque, enable blending for transparency.
 	{
@@ -181,7 +174,7 @@ void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
-	auto posL = setSequenceInformation( Projection, Camera, Model, LightSpaceMatrix, vertices );		// Prepare drawing by sending shading information to shaders.
+	auto posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
 
 	// Draw connected line segments.
 	if( posL >= 0 )
@@ -201,11 +194,10 @@ void OpenGL::drawPath( const mat44& Projection, const mat44& Camera, const mat44
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param vertices A vector of vec3 elements containing vertex positions.
  * @param size Pixel size for points.
  */
-void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices, float size )
+void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices, float size )
 {
 	if( size < 0 )
 		size = 10.0;
@@ -216,7 +208,7 @@ void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat
 		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
-	auto posL = setSequenceInformation( Projection, Camera, Model, LightSpaceMatrix, vertices );		// Prepare drawing by sending shading information to shaders.
+	auto posL = setSequenceInformation( Projection, Camera, Model, vertices );		// Prepare drawing by sending shading information to shaders.
 	if( posL >= 0 )
 	{
 		// Overriding the point size set by the sendShadingInformation() function in vertex shader.
@@ -248,11 +240,10 @@ void OpenGL::drawPoints( const mat44& Projection, const mat44& Camera, const mat
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param G A pointer to the geometry data structure.
  * @param t Type of geometry to be drawn.
  */
-void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, GeometryBuffer** G, GeometryTypes t )
+void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44& Model, GeometryBuffer** G, GeometryTypes t )
 {
 	if( material.ambient[3] < 1.0 )		// If alpha channel in current material color is not fully opaque, enable blending.
 	{
@@ -303,7 +294,7 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
 			glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
 		}
 		
-		sendShadingInformation( Projection, Camera, Model, LightSpaceMatrix, true );
+		sendShadingInformation( Projection, Camera, Model, true );
 		
 		// Draw triangles.
 		glDrawArrays( GL_TRIANGLES, 0, (*G)->verticesCount );
@@ -323,24 +314,16 @@ void OpenGL::drawGeom( const mat44& Projection, const mat44& Camera, const mat44
  * @param Projection 4x4 Projection matrix.
  * @param Camera 4x4 Camera matrix.
  * @param Model 4x4 Model matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param usingBlinnPhong Whether use phong model of flat coloring of geoms.
+ * @param usingTexture Whether to render with just colors or with a loaded texture (usually for 3D object models).
  */
-void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, bool usingBlinnPhong )
+void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, bool usingBlinnPhong, bool usingTexture )
 {
 	// Send the model, view, projection, and light space matrices (if they exist).
 	int model_location = glGetUniformLocation( renderingProgram, "Model" );
 	int view_location = glGetUniformLocation( renderingProgram, "View");
 	int proj_location = glGetUniformLocation( renderingProgram, "Projection" );
 	int itmv_location = glGetUniformLocation( renderingProgram, "InvTransModelView" );
-	int lsm_location = glGetUniformLocation( renderingProgram, "LightSpaceMatrix" );
-	
-	if( lsm_location >= 0 )				// Send light space matrix transform if shaders have corresponding receptor.
-	{
-		float lsm_matrix[ELEMENTS_PER_MATRIX];
-		Tx::toOpenGLMatrix( lsm_matrix, LightSpaceMatrix );
-		glUniformMatrix4fv( lsm_location, 1, GL_FALSE, lsm_matrix );
-	}
 	
 	if( model_location >= 0 )			// Send model matrix only if shaders have corresponding receptor.
 	{
@@ -380,44 +363,40 @@ void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camer
 	int drawPoint_location = glGetUniformLocation( renderingProgram, "drawPoint" );
 	if( drawPoint_location >= 0 )
 		glUniform1i( drawPoint_location, false );
-
-	// Set up lighting.
-	int lightSource_location = glGetUniformLocation( renderingProgram, "lightPosition" );
-	if( lightSource_location >= 0 )
-	{
-		float ls_vector[HOMOGENEOUS_VECTOR_SIZE];
-		Tx::toOpenGLMatrix( ls_vector, Camera*lightPosition );
-		glUniform4fv( lightSource_location, 1, ls_vector );
-	}
+	
+	// Specify if we'll use texture as diffuse component in fragment shader.
+	int useTexture_location = glGetUniformLocation( renderingProgram, "useTexture" );
+	if( useTexture_location != -1 )
+		glUniform1i( useTexture_location, usingTexture );
 
 	// Set up material shading.
 	int shininess_location = glGetUniformLocation( renderingProgram, "shininess" );
 	if( shininess_location >= 0 )
 		glUniform1f( shininess_location, material.shininess );
 
-	int ambientProd_location = glGetUniformLocation( renderingProgram, "ambientProd" );
-	int diffuseProd_location = glGetUniformLocation( renderingProgram, "diffuseProd" );
-	int specularProd_location = glGetUniformLocation( renderingProgram, "specularProd" );
+	int ambient_location = glGetUniformLocation( renderingProgram, "ambient" );
+	int diffuse_location = glGetUniformLocation( renderingProgram, "diffuse" );
+	int specular_location = glGetUniformLocation( renderingProgram, "specular" );
 	
-	if( ambientProd_location >= 0 )
+	if( ambient_location >= 0 )
 	{
-		float ambientProd_vector[HOMOGENEOUS_VECTOR_SIZE];
-		Tx::toOpenGLMatrix( ambientProd_vector, material.ambient % lightColor );
-		glUniform4fv( ambientProd_location, 1, ambientProd_vector );
+		float ambient_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( ambient_vector, material.ambient );
+		glUniform4fv( ambient_location, 1, ambient_vector );
 	}
 
-	if( diffuseProd_location >= 0 )
+	if( diffuse_location >= 0 )
 	{
-		float diffuseProd_vector[HOMOGENEOUS_VECTOR_SIZE];
-		Tx::toOpenGLMatrix( diffuseProd_vector, material.diffuse % lightColor );
-		glUniform4fv( diffuseProd_location, 1, diffuseProd_vector );
+		float diffuse_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( diffuse_vector, material.diffuse );
+		glUniform4fv( diffuse_location, 1, diffuse_vector );
 	}
 	
-	if( specularProd_location >= 0 )
+	if( specular_location >= 0 )
 	{
-		float specularProd_vector[HOMOGENEOUS_VECTOR_SIZE];
-		Tx::toOpenGLMatrix( specularProd_vector, material.specular % lightColor );
-		glUniform4fv( specularProd_location, 1, specularProd_vector );
+		float specular_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( specular_vector, material.specular );
+		glUniform4fv( specular_location, 1, specular_vector );
 	}
 }
 
@@ -426,11 +405,10 @@ void OpenGL::sendShadingInformation( const mat44& Projection, const mat44& Camer
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param vertices A vector of 3D vertices.
  * @return The position attribute location in shader, so that the pointer can be disabled in the caller.
  */
-GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const vector<vec3>& vertices )
+GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Camera, const mat44& Model, const vector<vec3>& vertices )
 {
 	if( path == nullptr )									// We haven't used this buffer before? Create it.
 	{
@@ -460,7 +438,7 @@ GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Came
 		glEnableVertexAttribArray( position_location );
 		glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
 		
-		sendShadingInformation( Projection, Camera, Model, LightSpaceMatrix, false );			// Without using phong model.
+		sendShadingInformation( Projection, Camera, Model, false );			// Without using phong model.
 	}
 
 	return position_location;
@@ -471,10 +449,11 @@ GLint OpenGL::setSequenceInformation( const mat44& Projection, const mat44& Came
  * @param Projection The 4x4 projection matrix.
  * @param Camera The 4x4 camera matrix.
  * @param Model The 4x4 model transformation matrix.
- * @param LightSpaceMatrix The 4x4 Proj_light * View_light transformation matrix.
  * @param objectType Type of object to be rendered.
+ * @param useTexture Whether or not use texture loaded for object.
+ * @param textureUnit Which texture unit activate for sampling in shader.
  */
-void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const mat44& LightSpaceMatrix, const char* objectType )
+void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const mat44& Model, const char* objectType, bool useTexture, int textureUnit )
 {
 	try
 	{
@@ -488,24 +467,48 @@ void OpenGL::render3DObject( const mat44& Projection, const mat44& Camera, const
 
 		glBindBuffer( GL_ARRAY_BUFFER, o.getBufferID() );
 
-		// Set up our vertex attributes.
-		auto position_location = static_cast<GLuint>( glGetAttribLocation( renderingProgram, "position" ) );
-		glEnableVertexAttribArray( position_location );
-		glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
-
-		auto normal_location = static_cast<GLuint>( glGetAttribLocation( renderingProgram, "normal" ) );
-		glEnableVertexAttribArray( normal_location );
-		size_t offset = sizeof(float) * o.getVerticesCount() * ELEMENTS_PER_VERTEX;
-		glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
-
-		sendShadingInformation( Projection, Camera, Model, LightSpaceMatrix, true );
-
-		// Draw triangles.
-		glDrawArrays( GL_TRIANGLES, 0, o.getVerticesCount() );
-
-		// Disable attribute arrays for position and normals.
-		glDisableVertexAttribArray( position_location );
-		glDisableVertexAttribArray( normal_location );
+		// Set up our vertex (and texture) attributes.
+		GLint position_location = glGetAttribLocation( renderingProgram, "position" );
+		GLint normal_location = glGetAttribLocation( renderingProgram, "normal" );
+		GLint texCoords_location = glGetAttribLocation( renderingProgram, "texCoords" );
+		if( position_location != -1 )		// Need to have at least the vertices positions to render.
+		{
+			glEnableVertexAttribArray( position_location );
+			glVertexAttribPointer( position_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( 0 ) );
+			
+			size_t offset = sizeof(float) * o.getVerticesCount() * ELEMENTS_PER_VERTEX;
+			
+			if( normal_location != -1 )		// Do we need normals?
+			{
+				glEnableVertexAttribArray( normal_location );
+				glVertexAttribPointer( normal_location, ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset ) );
+			}
+			
+			if( texCoords_location != -1 && useTexture && o.hasTexture() )			// Do we want to render with texture instead of color?
+			{
+				glEnableVertexAttribArray( texCoords_location );
+				glVertexAttribPointer( texCoords_location, TEX_ELEMENTS_PER_VERTEX, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET( offset * 2 ) );
+				
+				// Enable texture rendering.
+				glActiveTexture( GL_TEXTURE0 + textureUnit );												// Recall for objects we assigned texture unit after all lights.
+				glBindTexture( GL_TEXTURE_2D, o.getTextureID() );
+				glUniform1i( glGetUniformLocation( renderingProgram, "objectTexture" ), textureUnit );		// And tell OpenGL so.
+			}
+			else
+				useTexture = false;
+			
+			sendShadingInformation( Projection, Camera, Model, true, useTexture );	// Indicate we are using texture if the above condition holds.
+			
+			// Draw triangles.
+			glDrawArrays( GL_TRIANGLES, 0, o.getVerticesCount() );
+			
+			// Disable attribute arrays for position and normals.
+			glDisableVertexAttribArray( position_location );
+			if( normal_location != -1 )
+				glDisableVertexAttribArray( normal_location );
+			if( texCoords_location != -1 )
+				glDisableVertexAttribArray( texCoords_location );
+		}
 
 		if( material.ambient[3] < 1.0 )
 			glDisable( GL_BLEND );
@@ -603,8 +606,9 @@ void OpenGL::setUsingUniformScaling( bool u )
  * Load a new type of 3D object and allocate its necessary OpenGL rendering objects.
  * @param name User-defined object type name.
  * @param filename *.obj filename that contains the 3D triangular mesh.
+ * @param textureFilename Object's texture if needed.
  */
-void OpenGL::create3DObject( const char* name, const char* filename )
+void OpenGL::create3DObject( const char* name, const char* filename, const char* textureFilename )
 {
 	// Check if the object we want to create already exists.  If so, empty its buffer and recreate it.
 	string sName = string( name );
@@ -614,10 +618,13 @@ void OpenGL::create3DObject( const char* name, const char* filename )
 		Object3D o = it->second;
 		cout << "WARNING!  You are attempting to create a new type of 3D object with an existing name.  The old one will be replaced!" << endl;
 		GLuint bufferID = o.getBufferID();
-		glDeleteBuffers( 1, &bufferID );			// Empty buffer.
+		GLuint textureID = o.getTextureID();
+		glDeleteBuffers( 1, &bufferID );			// Empty buffer and texture.
+		if( o.hasTexture() && glIsTexture( textureID ) )
+			glDeleteTextures( 1, &textureID );
 	}
 
-	objectModels[sName] = Object3D( name, filename );
+	objectModels[sName] = Object3D( name, filename, textureFilename );
 	cout << "The 3D object of kind \"" << name << "\" has been successfully allocated!" << endl;
 }
 
@@ -631,6 +638,52 @@ void OpenGL::useProgram( GLuint program )
 	glUseProgram( renderingProgram );
 }
 
+/**
+ * Set and send the lighting properties to shaders attached to current rendering program.
+ * @param light Light object.
+ * @param View The 4x4 view transformation matrix (usually the camera matrix).
+ * @param useUnitSuffix Wheter attach light index as suffix to shader uniform variables.
+ */
+void OpenGL::setLighting( const Light& light, const mat44& View, bool useUnitSuffix )
+{
+	string lightSpaceMatrixStr = "LightSpaceMatrix";
+	string lightPositionStr = "lightPosition";
+	string lightColorStr = "lightColor";
+	
+	if( useUnitSuffix )		// Does the shader have light names with suffix corresponding to unit?
+	{
+		lightSpaceMatrixStr += to_string( light.getUnit() );
+		lightPositionStr += to_string( light.getUnit() );
+		lightColorStr += to_string( light.getUnit() );
+	}
+	
+	// Send light space matrix transform if shaders have corresponding receptor.
+	int lsm_location = glGetUniformLocation( renderingProgram, lightSpaceMatrixStr.c_str() );
+	if( lsm_location >= 0 )
+	{
+		float lsm_matrix[ELEMENTS_PER_MATRIX];
+		Tx::toOpenGLMatrix( lsm_matrix, light.SpaceMatrix );
+		glUniformMatrix4fv( lsm_location, 1, GL_FALSE, lsm_matrix );
+	}
+	
+	// Light position.
+	int lightSource_location = glGetUniformLocation( renderingProgram, lightPositionStr.c_str() );
+	if( lightSource_location >= 0 )
+	{
+		float ls_vector[HOMOGENEOUS_VECTOR_SIZE];
+		Tx::toOpenGLMatrix( ls_vector, View * vec4{ light.position[0], light.position[1], light.position[2], 1.0 } );		// We must send the light position in view coordinates.
+		glUniform4fv( lightSource_location, 1, ls_vector );
+	}
+	
+	// Light color.
+	int lightColor_location = glGetUniformLocation( renderingProgram, lightColorStr.c_str() );
+	if( lightColor_location >= 0 )
+	{
+		float lightColor_vector[VECTOR_SIZE_3D];
+		Tx::toOpenGLMatrix( lightColor_vector, light.color );
+		glUniform3fv( lightColor_location, 1, lightColor_vector );
+	}
+}
 
 
 

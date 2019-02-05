@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1D4453E721FE5490005BEBC3 /* stb_image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D4453E621FE5490005BEBC3 /* stb_image.cpp */; };
+		1D7C117022015549001BBBF6 /* Light.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D7C116F22015549001BBBF6 /* Light.cpp */; };
 		1D856C8221F1411000E16363 /* Transformations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7021F1410F00E16363 /* Transformations.cpp */; };
 		1D856C8321F1411000E16363 /* application.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7421F1410F00E16363 /* application.cpp */; };
 		1D856C8421F1411000E16363 /* Object3D.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1D856C7621F1410F00E16363 /* Object3D.cpp */; };
@@ -36,6 +38,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1D4453E521FE5104005BEBC3 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = "<group>"; };
+		1D4453E621FE5490005BEBC3 /* stb_image.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = stb_image.cpp; sourceTree = "<group>"; };
+		1D7C116E220151ED001BBBF6 /* Light.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Light.h; sourceTree = "<group>"; };
+		1D7C116F22015549001BBBF6 /* Light.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Light.cpp; sourceTree = "<group>"; };
 		1D856C6421F1407D00E16363 /* RTRendering */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = RTRendering; sourceTree = BUILT_PRODUCTS_DIR; };
 		1D856C6E21F1410F00E16363 /* OpenGLGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OpenGLGeometry.h; sourceTree = "<group>"; };
 		1D856C6F21F1410F00E16363 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -108,6 +114,8 @@
 				1D856C7721F1410F00E16363 /* Atlas.h */,
 				1D856C7B21F1411000E16363 /* CMakeLists.txt */,
 				1D856C7F21F1411000E16363 /* Configuration.h */,
+				1D7C116E220151ED001BBBF6 /* Light.h */,
+				1D7C116F22015549001BBBF6 /* Light.cpp */,
 				1D856C7621F1410F00E16363 /* Object3D.cpp */,
 				1D856C7221F1410F00E16363 /* Object3D.h */,
 				1D856C8021F1411000E16363 /* OpenGL.cpp */,
@@ -117,6 +125,8 @@
 				1D856C6F21F1410F00E16363 /* README.md */,
 				1D856C7821F1410F00E16363 /* Shaders.cpp */,
 				1D856C7A21F1411000E16363 /* Shaders.h */,
+				1D4453E521FE5104005BEBC3 /* stb_image.h */,
+				1D4453E621FE5490005BEBC3 /* stb_image.cpp */,
 				1D856C7021F1410F00E16363 /* Transformations.cpp */,
 				1D856C7521F1410F00E16363 /* Transformations.h */,
 				1D856C7921F1411000E16363 /* Resources */,
@@ -206,10 +216,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				1D856C9B21F146BD00E16363 /* BallMath.cpp in Sources */,
+				1D4453E721FE5490005BEBC3 /* stb_image.cpp in Sources */,
 				1D856C8221F1411000E16363 /* Transformations.cpp in Sources */,
 				1D856C8321F1411000E16363 /* application.cpp in Sources */,
 				1D856C8521F1411000E16363 /* Shaders.cpp in Sources */,
 				1D856C9C21F146BD00E16363 /* Ball.cpp in Sources */,
+				1D7C117022015549001BBBF6 /* Light.cpp in Sources */,
 				1D856C8821F1411000E16363 /* OpenGLGeometry.cpp in Sources */,
 				1D856C8421F1411000E16363 /* Object3D.cpp in Sources */,
 				1D856C9A21F146BD00E16363 /* BallAux.cpp in Sources */,
